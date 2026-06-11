@@ -85,7 +85,7 @@ export default async function FriendsPage() {
   }));
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>FRIENDS</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">The feed</h1>
       <p className="mt-2 text-sm font-light text-ink-soft">

@@ -102,13 +102,23 @@ export function WorkoutClient({
     []
   );
 
-  function step(id: string, delta: number, unit: "kg" | "s") {
+  // Step size matches the movement: ±2.5 kg suits a barbell, but pump work
+  // (curls, raises, kickbacks) moves in ±1 kg. Timed holds step ±5 s.
+  function stepSize(ex: WorkoutExercise): number {
+    if (ex.unit === "s") return 5;
+    return ex.repProfile === "pump" ? 1 : 2.5;
+  }
+
+  function step(ex: WorkoutExercise, delta: number) {
     setEntries((prev) => {
-      const cur = parseFloat(prev[id].weight.replace(",", ".")) || 0;
-      const next = Math.max(0, cur + delta * (unit === "s" ? 5 : 2.5));
+      const cur = parseFloat(prev[ex.exerciseId].weight.replace(",", ".")) || 0;
+      const next = Math.max(0, cur + delta * stepSize(ex));
       return {
         ...prev,
-        [id]: { ...prev[id], weight: next === 0 ? "" : String(next) },
+        [ex.exerciseId]: {
+          ...prev[ex.exerciseId],
+          weight: next === 0 ? "" : String(next),
+        },
       };
     });
   }
@@ -154,7 +164,7 @@ export function WorkoutClient({
   }
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <header className="flex items-center justify-between">
         <Link
           href="/"
@@ -236,7 +246,11 @@ export function WorkoutClient({
                       {ex.muscleGroup}
                       {ex.lastWeight != null && (
                         <>
+                          {/* e.g. LAST: 12 kg × 12 × 3 */}
                           {" "}· LAST: {formatKg(ex.lastWeight)} {ex.unit}
+                          {ex.unit === "kg" && ex.lastReps != null && (
+                            <> × {ex.lastReps} × {ex.sets}</>
+                          )}
                           {trendUp && <span className="text-sage-deep"> ↑</span>}
                         </>
                       )}
@@ -270,7 +284,7 @@ export function WorkoutClient({
                       <button
                         aria-label="Decrease weight"
                         className="flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 bg-white/50 active:bg-ink/5"
-                        onClick={() => step(ex.exerciseId, -1, ex.unit)}
+                        onClick={() => step(ex, -1)}
                       >
                         <Minus size={18} strokeWidth={1.5} />
                       </button>
@@ -283,7 +297,7 @@ export function WorkoutClient({
                           onChange={(ev) =>
                             update(ex.exerciseId, { weight: ev.target.value })
                           }
-                          className="w-24 bg-transparent text-center font-mono text-4xl font-light outline-none placeholder:text-ink/20"
+                          className="w-24 bg-transparent text-center font-mono text-4xl font-light outline-none placeholder:text-ink/30"
                         />
                         <MonoNumber className="text-sm text-ink-soft">
                           {ex.unit}
@@ -292,14 +306,14 @@ export function WorkoutClient({
                       <button
                         aria-label="Increase weight"
                         className="flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 bg-white/50 active:bg-ink/5"
-                        onClick={() => step(ex.exerciseId, 1, ex.unit)}
+                        onClick={() => step(ex, 1)}
                       >
                         <Plus size={18} strokeWidth={1.5} />
                       </button>
                     </div>
 
                     {ex.unit === "s" && (
-                      <MonoNumber className="mt-3 block text-center text-xs text-ink-soft/60">
+                      <MonoNumber className="mt-3 block text-center text-xs text-ink-soft/80">
                         target {REP_TARGETS.timed[phase]} hold
                       </MonoNumber>
                     )}
@@ -315,7 +329,7 @@ export function WorkoutClient({
                           }
                           className="w-12 rounded-full border border-ink/10 bg-white/50 py-1 text-center font-mono text-sm outline-none"
                         />
-                        <MonoNumber className="text-xs text-ink-soft/60">
+                        <MonoNumber className="text-xs text-ink-soft/80">
                           target {REP_TARGETS[ex.repProfile][phase]}
                         </MonoNumber>
                       </div>
@@ -447,7 +461,7 @@ export function WorkoutClient({
               </button>
             ))}
           </div>
-          <div className="mt-2 flex justify-between px-2 text-[10px] text-ink-soft/60">
+          <div className="mt-2 flex justify-between px-2 text-[10px] text-ink-soft/80">
             <span>rough</span>
             <span>unstoppable</span>
           </div>

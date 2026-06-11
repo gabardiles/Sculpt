@@ -9,7 +9,7 @@ export default async function AdminPage() {
   if (!profile?.is_admin) redirect("/");
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>ADMIN</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">Invite someone</h1>
       <p className="mt-2 text-sm font-light text-ink-soft">

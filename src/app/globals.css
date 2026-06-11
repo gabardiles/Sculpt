@@ -3,11 +3,11 @@
 @theme {
   --color-bg: #fbf7f6;
   --color-blush: #e8c8c4;
-  --color-blush-deep: #c9938e;
+  --color-blush-deep: #b97d77;
   --color-ink: #2b2422;
-  --color-ink-soft: #8a7e7a;
+  --color-ink-soft: #6f635e;
   --color-sage: #a9bca4;
-  --color-sage-deep: #8aa284;
+  --color-sage-deep: #5f7a58;
   --color-glass: rgba(255, 255, 255, 0.55);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
@@ -17,6 +17,7 @@
   --shadow-card: 0 8px 32px rgba(43, 36, 34, 0.06);
 
   --animate-fade-up: fade-up 0.3s ease both;
+  --animate-fade-in: fade-in 0.3s ease both;
   --animate-sage-fill: sage-fill 0.4s ease both;
 
   @keyframes fade-up {
@@ -27,6 +28,18 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /* Page-level entrance. Opacity only — a transform here would turn the
+     page into the containing block for position:fixed children (sheets,
+     rest timer, finish bar) and push them off-screen. */
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
     }
   }
 

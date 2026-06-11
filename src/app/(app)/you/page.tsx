@@ -59,7 +59,7 @@ export default async function YouPage() {
   ];
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>YOU</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">
         {profile?.name ?? "Your space"}

@@ -252,7 +252,7 @@ export function FriendsClient({
                   await removeFriend(f.id);
                   router.refresh();
                 }}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/60 active:bg-ink/5"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
               >
                 <Trash2 size={15} strokeWidth={1.5} />
               </button>
@@ -344,7 +344,7 @@ function FeedCard({
             strokeWidth={1.6}
             className={cn(
               "transition-colors",
-              cheered ? "fill-blush-deep text-blush-deep" : "text-ink-soft/60"
+              cheered ? "fill-blush-deep text-blush-deep" : "text-ink-soft/80"
             )}
           />
           {count > 0 && (
@@ -358,7 +358,7 @@ function FeedCard({
               await deleteFeedPost(item.id, item.storagePath);
               onChanged();
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/40 active:bg-ink/5"
+            className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
           >
             <Trash2 size={14} strokeWidth={1.5} />
           </button>

@@ -44,7 +44,7 @@ export default async function WeightPage() {
   const todayRow = rows.find((r) => r.date === today);
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>WEIGHT DIARY</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">Body weight</h1>
 

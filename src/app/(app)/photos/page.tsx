@@ -36,7 +36,7 @@ export default async function PhotosPage() {
   }
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>PROGRESS</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">Photos</h1>
       <p className="mt-2 text-sm font-light text-ink-soft">

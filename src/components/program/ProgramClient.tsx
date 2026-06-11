@@ -123,7 +123,7 @@ export function ProgramClient({
   }
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <header className="flex items-start justify-between">
         <div>
           <Eyebrow>PROGRAM</Eyebrow>
@@ -243,7 +243,7 @@ export function ProgramClient({
                                   <button
                                     aria-label={`Remove ${row.exercise.name}`}
                                     onClick={() => removeExercise(row.programExerciseId)}
-                                    className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/60 active:bg-ink/5"
+                                    className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
                                   >
                                     <Trash2 size={15} strokeWidth={1.5} />
                                   </button>
@@ -337,7 +337,7 @@ export function ProgramClient({
               </ul>
               {swapOptions.otherTier.length > 0 && (
                 <>
-                  <MonoNumber className="mt-4 block text-[10px] uppercase tracking-wider text-ink-soft/60">
+                  <MonoNumber className="mt-4 block text-[10px] uppercase tracking-wider text-ink-soft/80">
                     Different intensity
                   </MonoNumber>
                   <ul className="mt-2 flex flex-col gap-2">

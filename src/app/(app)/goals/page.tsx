@@ -70,7 +70,7 @@ export default async function GoalsPage() {
   }
 
   return (
-    <main className="animate-fade-up">
+    <main className="animate-fade-in">
       <Eyebrow>GOALS</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">
         Three at a time

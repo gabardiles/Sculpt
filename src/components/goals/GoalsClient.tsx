@@ -68,7 +68,7 @@ export function GoalsClient({
                 <button
                   aria-label={`Delete goal ${g.label}`}
                   onClick={() => deleteGoal(g.id)}
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft/50 active:bg-ink/5"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
                 >
                   <Trash2 size={15} strokeWidth={1.5} />
                 </button>
