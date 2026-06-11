@@ -12,8 +12,14 @@ import { RestTimer } from "@/components/workout/RestTimer";
 import { completeWorkout, createFeedPost } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
 import { dayImage } from "@/lib/editorial";
-import { REP_DEFAULT, REP_TARGETS, REST_SECONDS } from "@/lib/cycle";
-import type { Phase, RepProfile } from "@/lib/types";
+import {
+  REP_DEFAULT,
+  REP_TARGETS,
+  REST_SECONDS,
+  repDefault,
+  repTarget,
+} from "@/lib/cycle";
+import type { MovementPattern, Phase, RepProfile } from "@/lib/types";
 import { formatKg } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -23,6 +29,7 @@ export interface WorkoutExercise {
   name: string;
   shortLabel: string | null;
   muscleGroup: string;
+  movementPattern: MovementPattern;
   equipment: string | null;
   unit: "kg" | "s";
   repProfile: RepProfile;
@@ -78,7 +85,11 @@ export function WorkoutClient({
               : ex.unit === "s"
                 ? String(REP_DEFAULT.timed[phase])
                 : "",
-          reps: String(ex.unit === "s" ? "" : REP_DEFAULT[ex.repProfile][phase]),
+          reps: String(
+            ex.unit === "s"
+              ? ""
+              : repDefault(ex.repProfile, ex.movementPattern, phase)
+          ),
           sets: String(ex.lastSets ?? ex.sets),
           done: false,
         },
@@ -415,9 +426,20 @@ export function WorkoutClient({
                     </div>
 
                     <MonoNumber className="mt-2 block text-center text-xs text-ink-soft/80">
-                      target {REP_TARGETS[ex.repProfile][phase]}
+                      target {repTarget(ex.repProfile, ex.movementPattern, phase)}
                       {ex.unit === "s" ? " hold" : " reps"}
                     </MonoNumber>
+                    {/* double progression: top of range last time → go up */}
+                    {ex.unit === "kg" &&
+                      ex.lastWeight != null &&
+                      ex.lastReps != null &&
+                      ex.lastReps >=
+                        repDefault(ex.repProfile, ex.movementPattern, phase) && (
+                        <MonoNumber className="mt-1 block text-center text-xs font-medium text-sage-deep">
+                          Last time you hit the top of the range — try +
+                          {ex.repProfile === "pump" ? "1" : "2,5"} kg
+                        </MonoNumber>
+                      )}
 
                     <div className="mt-4 flex gap-2">
                       {e.done ? (

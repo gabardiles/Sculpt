@@ -11,10 +11,12 @@ export function CloseWeekButton({
   cycle,
   phase,
   doneCount,
+  skippedNames,
 }: {
   cycle: number;
   phase: Phase;
   doneCount: number;
+  skippedNames: string[];
 }) {
   const [busy, setBusy] = useState(false);
 
@@ -32,8 +34,15 @@ export function CloseWeekButton({
         <Check size={16} strokeWidth={1.8} />
         {busy ? "Closing…" : `Finish week (${doneCount}/5)`}
       </PillButton>
-      <p className="text-xs text-ink-soft">
+      <p className="px-4 text-center text-xs text-ink-soft">
         3 of 5 is a full week. All 5 earns the star.
+        {skippedNames.length > 0 && (
+          <>
+            {" "}
+            Skipping {skippedNames.join(" & ")} — they&apos;ll come first next
+            week.
+          </>
+        )}
       </p>
     </div>
   );

@@ -1,4 +1,4 @@
-import type { Phase, RepProfile } from "./types";
+import type { MovementPattern, Phase, RepProfile } from "./types";
 
 export const PHASES: Phase[] = ["light", "medium", "hard"];
 
@@ -20,6 +20,34 @@ export const REP_DEFAULT: Record<RepProfile, Record<Phase, number>> = {
   pump: { light: 20, medium: 15, hard: 12 },
   timed: { light: 30, medium: 40, hard: 45 },
 };
+
+// Unilaterals (lunges, split squats, step-ups) are balance-limited: a true
+// 4–6RM Bulgarian split squat is a coordination gamble, not a strength
+// stimulus. They wave one notch higher than other compounds.
+const LUNGE_TARGETS: Record<Phase, string> = {
+  light: "10–12",
+  medium: "8–10",
+  hard: "6–8",
+};
+const LUNGE_DEFAULT: Record<Phase, number> = { light: 12, medium: 10, hard: 8 };
+
+export function repTarget(
+  profile: RepProfile,
+  pattern: MovementPattern,
+  phase: Phase
+): string {
+  if (profile === "strength" && pattern === "lunge") return LUNGE_TARGETS[phase];
+  return REP_TARGETS[profile][phase];
+}
+
+export function repDefault(
+  profile: RepProfile,
+  pattern: MovementPattern,
+  phase: Phase
+): number {
+  if (profile === "strength" && pattern === "lunge") return LUNGE_DEFAULT[phase];
+  return REP_DEFAULT[profile][phase];
+}
 
 /** Rest timer defaults — hard weeks earn longer rest. */
 export const REST_SECONDS: Record<Phase, number> = {
@@ -90,12 +118,31 @@ export function deriveCycleState(
     const finished =
       done.size >= orderedDayIds.length || closed.has(`${cycle}:${phase}`);
     if (!finished) {
+      // Suggest the least-recently-trained day, not always Day 1 — if she
+      // closes weeks at 3/5, the skipped days come first next week instead
+      // of silently never happening.
+      const lastDoneAt = new Map<string, string>();
+      for (const l of logs) {
+        const cur = lastDoneAt.get(l.program_day_id);
+        if (!cur || l.completed_at > cur) {
+          lastDoneAt.set(l.program_day_id, l.completed_at);
+        }
+      }
+      const nextDayId =
+        orderedDayIds
+          .filter((id) => !done.has(id))
+          .sort((a, b) => {
+            const ta = lastDoneAt.get(a) ?? "";
+            const tb = lastDoneAt.get(b) ?? "";
+            if (ta !== tb) return ta < tb ? -1 : 1; // never/oldest first
+            return orderedDayIds.indexOf(a) - orderedDayIds.indexOf(b);
+          })[0] ?? null;
       return {
         cycle,
         phase,
         weekIndex: i + 1,
         doneDayIds: done,
-        nextDayId: orderedDayIds.find((id) => !done.has(id)) ?? null,
+        nextDayId,
         weekClosable: done.size >= WEEK_MIN_SESSIONS,
         cycleJustCompleted: false,
       };

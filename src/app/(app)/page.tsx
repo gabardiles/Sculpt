@@ -242,6 +242,9 @@ export default async function DashboardPage() {
             cycle={state.cycle}
             phase={state.phase}
             doneCount={state.doneDayIds.size}
+            skippedNames={program.days
+              .filter((d) => !state.doneDayIds.has(d.id))
+              .map((d) => d.name)}
           />
         )}
       </section>

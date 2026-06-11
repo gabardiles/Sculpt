@@ -57,6 +57,7 @@ export default async function WorkoutPage({
       name: pe.exercise.name,
       shortLabel: pe.exercise.short_label,
       muscleGroup: pe.exercise.muscle_group,
+      movementPattern: pe.exercise.movement_pattern,
       equipment: pe.exercise.equipment,
       unit: pe.exercise.unit,
       repProfile: pe.exercise.rep_profile,
