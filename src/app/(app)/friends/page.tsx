@@ -42,14 +42,28 @@ export default async function FriendsPage() {
   }));
   const posts = (postsData ?? []) as FeedPost[];
 
-  // Cheers for the visible posts.
-  const { data: cheersData } = posts.length
-    ? await supabase
-        .from("feed_cheers")
-        .select("post_id, user_id")
-        .in("post_id", posts.map((p) => p.id))
-    : { data: [] };
+  // Cheers + comments for the visible posts.
+  const postIds = posts.map((p) => p.id);
+  const [{ data: cheersData }, { data: commentsData }] = posts.length
+    ? await Promise.all([
+        supabase
+          .from("feed_cheers")
+          .select("post_id, user_id")
+          .in("post_id", postIds),
+        supabase
+          .from("feed_comments")
+          .select("id, post_id, user_id, body, created_at")
+          .in("post_id", postIds)
+          .order("created_at"),
+      ])
+    : [{ data: [] }, { data: [] }];
   const cheers = (cheersData ?? []) as { post_id: string; user_id: string }[];
+  const comments = (commentsData ?? []) as {
+    id: string;
+    post_id: string;
+    user_id: string;
+    body: string;
+  }[];
 
   // Signed URLs for photo posts.
   const photoPaths = posts
@@ -84,6 +98,15 @@ export default async function FriendsPage() {
       .map((c) =>
         c.user_id === user.id ? "You" : nameById.get(c.user_id) ?? "Someone"
       ),
+    comments: comments
+      .filter((c) => c.post_id === p.id)
+      .map((c) => ({
+        id: c.id,
+        authorName:
+          c.user_id === user.id ? "You" : nameById.get(c.user_id) ?? "Someone",
+        body: c.body,
+        mine: c.user_id === user.id,
+      })),
   }));
 
   return (

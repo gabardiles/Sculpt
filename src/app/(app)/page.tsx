@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Heart, TrendingUp } from "lucide-react";
+import { Camera, Check, ChevronRight, MessageCircle, TrendingUp } from "lucide-react";
 import {
   requireUser,
   getProfile,
@@ -217,35 +217,60 @@ export default async function DashboardPage() {
     };
   }
 
-  // ------------------------------------------------- friend's latest session
+  // ------------------------------------------------- friends — latest 4 posts
   const friendIds = ((friendRows ?? []) as { friend_id: string }[]).map(
     (r) => r.friend_id
   );
-  let friendPost: (FeedPost & { authorName: string }) | null = null;
+  type FriendFeedItem = {
+    id: string;
+    authorName: string;
+    type: FeedPost["type"];
+    body: string | null;
+    createdAt: string;
+    phase: string | null;
+    photoUrl: string | null;
+  };
+  let friendFeed: FriendFeedItem[] = [];
   if (friendIds.length) {
-    const [{ data: post }, { data: people }] = await Promise.all([
+    const [{ data: posts }, { data: people }] = await Promise.all([
       supabase
         .from("feed_posts")
         .select("*")
         .in("user_id", friendIds)
-        .in("type", ["workout", "pb"])
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(4),
       supabase.from("profiles").select("id, name").in("id", friendIds),
     ]);
-    if (post) {
-      const nameById = new Map(
-        ((people ?? []) as { id: string; name: string | null }[]).map((p) => [
-          p.id,
-          p.name ?? "A friend",
-        ])
-      );
-      friendPost = {
-        ...(post as FeedPost),
-        authorName: nameById.get((post as FeedPost).user_id) ?? "A friend",
-      };
+    const rows = (posts ?? []) as FeedPost[];
+    const nameById = new Map(
+      ((people ?? []) as { id: string; name: string | null }[]).map((p) => [
+        p.id,
+        p.name ?? "A friend",
+      ])
+    );
+    // One signed-URL call, only when there are photos among the four.
+    const photoPaths = rows
+      .filter((p) => p.type === "photo" && p.storage_path)
+      .map((p) => p.storage_path!) as string[];
+    const urlByPath = new Map<string, string>();
+    if (photoPaths.length) {
+      const { data: signed } = await supabase.storage
+        .from("feed-photos")
+        .createSignedUrls(photoPaths, 3600);
+      photoPaths.forEach((path, i) => {
+        const u = signed?.[i]?.signedUrl;
+        if (u) urlByPath.set(path, u);
+      });
     }
+    friendFeed = rows.map((p) => ({
+      id: p.id,
+      authorName: nameById.get(p.user_id) ?? "A friend",
+      type: p.type,
+      body: p.body,
+      createdAt: p.created_at,
+      phase: typeof p.metadata?.phase === "string" ? (p.metadata.phase as string) : null,
+      photoUrl: p.storage_path ? urlByPath.get(p.storage_path) ?? null : null,
+    }));
   }
 
   // ------------------------------------------------------------------- goals
@@ -417,36 +442,52 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* friend's latest */}
-      {friendPost && (
+      {/* friends — latest four, tap through to the feed */}
+      {friendFeed.length > 0 && (
         <section className="mt-6">
-          <Eyebrow>FRIENDS</Eyebrow>
-          <Link href="/friends" className="block">
-            <Card className="mt-2 flex items-center gap-3 px-5 py-4 active:scale-[0.99] transition-transform">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blush/30">
-                {friendPost.type === "pb" ? (
-                  <TrendingUp size={17} strokeWidth={1.6} className="text-blush-deep" />
-                ) : (
-                  <Heart size={17} strokeWidth={1.6} className="text-blush-deep" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">
-                  <span className="font-medium">{friendPost.authorName}</span>{" "}
-                  <span className="font-light text-ink-soft">
-                    {friendPost.body}
-                  </span>
-                </span>
-                <MonoNumber className="text-[11px] uppercase tracking-wider text-ink-soft">
-                  {formatDay(friendPost.created_at)}
-                  {typeof friendPost.metadata?.phase === "string" && (
-                    <> · {friendPost.metadata.phase as string}</>
+          <div className="flex items-center justify-between">
+            <Eyebrow>FRIENDS</Eyebrow>
+            <Link href="/friends" className="text-xs font-light text-ink-soft active:text-ink">
+              See all
+            </Link>
+          </div>
+          <Card className="mt-2 divide-y divide-edge overflow-hidden">
+            {friendFeed.map((p) => (
+              <Link
+                key={p.id}
+                href="/friends"
+                className="flex items-center gap-3 px-4 py-3 active:bg-ink/5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-blush/30">
+                  {p.type === "photo" && p.photoUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : p.type === "pb" ? (
+                    <TrendingUp size={16} strokeWidth={1.6} className="text-blush-deep" />
+                  ) : p.type === "workout" ? (
+                    <Check size={16} strokeWidth={2} className="text-sage-deep" />
+                  ) : p.type === "photo" ? (
+                    <Camera size={16} strokeWidth={1.6} className="text-blush-deep" />
+                  ) : (
+                    <MessageCircle size={16} strokeWidth={1.6} className="text-blush-deep" />
                   )}
-                </MonoNumber>
-              </span>
-              <ChevronRight size={16} strokeWidth={1.5} className="shrink-0 text-ink-soft" />
-            </Card>
-          </Link>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm">
+                    <span className="font-medium">{p.authorName}</span>{" "}
+                    <span className="font-light text-ink-soft">
+                      {p.body ?? (p.type === "photo" ? "shared a photo" : "")}
+                    </span>
+                  </span>
+                  <MonoNumber className="text-[11px] uppercase tracking-wider text-ink-soft">
+                    {formatDay(p.createdAt)}
+                    {p.phase && <> · {p.phase}</>}
+                  </MonoNumber>
+                </span>
+                <ChevronRight size={16} strokeWidth={1.5} className="shrink-0 text-ink-soft" />
+              </Link>
+            ))}
+          </Card>
         </section>
       )}
 

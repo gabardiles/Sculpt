@@ -83,6 +83,33 @@ export function CheerListener() {
             push("💬", `${who?.name ?? "A friend"}: “${post.body}”`);
           }
         )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "feed_comments" },
+          async (payload) => {
+            const c = payload.new as {
+              post_id: string;
+              user_id: string;
+              body: string;
+            };
+            if (c.user_id === userId) return;
+            const [{ data: post }, { data: who }] = await Promise.all([
+              supabase
+                .from("feed_posts")
+                .select("user_id")
+                .eq("id", c.post_id)
+                .maybeSingle(),
+              supabase
+                .from("profiles")
+                .select("name")
+                .eq("id", c.user_id)
+                .maybeSingle(),
+            ]);
+            // Only notify on comments on YOUR posts.
+            if (post?.user_id !== userId) return;
+            push("💬", `${who?.name ?? "A friend"}: “${c.body}”`);
+          }
+        )
         .subscribe();
     })();
 

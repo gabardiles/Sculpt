@@ -6,6 +6,7 @@ import {
   Check,
   Copy,
   Heart,
+  MessageCircle,
   Send,
   Trash2,
   TrendingUp,
@@ -15,8 +16,10 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { validateImageFile } from "@/lib/uploads";
 import {
+  addComment,
   addFriendByCode,
   createFeedPost,
+  deleteComment,
   deleteFeedPost,
   removeFriend,
   toggleCheer,
@@ -34,6 +37,13 @@ export interface FriendRow {
   name: string;
 }
 
+export interface FeedComment {
+  id: string;
+  authorName: string;
+  body: string;
+  mine: boolean;
+}
+
 export interface FeedItem {
   id: string;
   userId: string;
@@ -48,6 +58,7 @@ export interface FeedItem {
   cheerCount: number;
   cheeredByMe: boolean;
   cheerNames: string[];
+  comments: FeedComment[];
 }
 
 export function FriendsClient({
@@ -420,6 +431,114 @@ function FeedCard({ item }: { item: FeedItem }) {
           </button>
         )}
       </div>
+
+      <CommentThread item={item} />
     </Card>
+  );
+}
+
+/**
+ * Comments under a post. The composer pins a thumbnail of the photo (or a
+ * one-line quote of a message) beside the input, so it's unmistakable what
+ * you're replying to.
+ */
+function CommentThread({ item }: { item: FeedItem }) {
+  const [comments, setComments] = useState<FeedComment[]>(item.comments);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    const body = text.trim();
+    if (!body || busy) return;
+    setBusy(true);
+    const optimistic: FeedComment = {
+      id: `tmp-${Date.now()}`,
+      authorName: "You",
+      body,
+      mine: true,
+    };
+    setComments((c) => [...c, optimistic]);
+    setText("");
+    const res = await addComment(item.id, body);
+    if (!res.ok) {
+      setComments((c) => c.filter((x) => x.id !== optimistic.id));
+    }
+    setBusy(false);
+  }
+
+  async function remove(id: string) {
+    setComments((c) => c.filter((x) => x.id !== id));
+    await deleteComment(id);
+  }
+
+  return (
+    <div className="mt-2 border-t border-edge pt-2">
+      {comments.length > 0 && (
+        <ul className="flex flex-col gap-1.5">
+          {comments.map((c) => (
+            <li key={c.id} className="flex items-start gap-2 text-sm">
+              <span className="min-w-0 flex-1 font-light leading-snug">
+                <span className="font-medium">{c.authorName}</span> {c.body}
+              </span>
+              {c.mine && !c.id.startsWith("tmp-") && (
+                <button
+                  aria-label="Delete comment"
+                  onClick={() => remove(c.id)}
+                  className="mt-0.5 shrink-0 text-ink-soft/70 active:text-ink-soft"
+                >
+                  <Trash2 size={13} strokeWidth={1.5} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          className="mt-1.5 flex min-h-9 items-center gap-1.5 text-xs font-light text-ink-soft active:text-ink"
+        >
+          <MessageCircle size={14} strokeWidth={1.5} />
+          {comments.length > 0 ? "Add a comment" : "Comment"}
+        </button>
+      ) : (
+        <form onSubmit={submit} className="mt-2 flex items-center gap-2">
+          {/* thumbnail anchor — makes the target of the comment obvious */}
+          {item.type === "photo" && item.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={item.photoUrl}
+              alt=""
+              className="h-9 w-9 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface-soft text-ink-soft">
+              <MessageCircle size={15} strokeWidth={1.5} />
+            </span>
+          )}
+          <input
+            autoFocus
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={`Comment on ${item.authorName}'s ${
+              item.type === "photo" ? "photo" : "post"
+            }…`}
+            maxLength={280}
+            className="h-9 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none focus:border-blush-deep"
+          />
+          <button
+            type="submit"
+            aria-label="Send comment"
+            disabled={busy || !text.trim()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blush text-on-accent disabled:opacity-40"
+          >
+            <Send size={15} strokeWidth={1.6} />
+          </button>
+        </form>
+      )}
+    </div>
   );
 }

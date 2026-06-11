@@ -449,6 +449,25 @@ export async function toggleCheer(postId: string, on: boolean) {
   revalidatePath("/friends");
 }
 
+export async function addComment(postId: string, body: string) {
+  const { supabase, userId } = await requireUserId();
+  const text = body.trim().slice(0, 280);
+  if (!text) return { ok: false as const };
+  // RLS rejects comments on posts the caller can't see.
+  const { error } = await supabase
+    .from("feed_comments")
+    .insert({ post_id: postId, user_id: userId, body: text });
+  if (error) return { ok: false as const };
+  revalidatePath("/friends");
+  return { ok: true as const };
+}
+
+export async function deleteComment(commentId: string) {
+  const { supabase } = await requireUserId();
+  await supabase.from("feed_comments").delete().eq("id", commentId);
+  revalidatePath("/friends");
+}
+
 // ---------------------------------------------------------------- program
 
 /** Close the current week from 3/5 sessions — checkbox week, on to the next. */
