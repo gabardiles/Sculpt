@@ -303,8 +303,7 @@ create policy "goals own" on public.goals
   for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists "quotes read" on public.quotes;
-create policy "quotes read" on public.quotes
-  for select using (auth.role() = 'authenticated');
+create policy "quotes read" on public.quotes for select using (true);
 
 drop policy if exists "friends read own" on public.friends;
 create policy "friends read own" on public.friends
@@ -669,6 +668,23 @@ update public.exercises set instruction_url = 'https://www.youtube-nocookie.com/
 update public.exercises set instruction_url = 'https://www.youtube-nocookie.com/embed/bVrmtCI00Ys' where name = 'Cable Kickbacks' and is_global;
 update public.exercises set instruction_url = 'https://www.youtube-nocookie.com/embed/PhNkkOieB-8' where name = 'Banded Lateral Walks' and is_global;
 update public.exercises set instruction_url = 'https://www.youtube-nocookie.com/embed/rVdk_9rwRIM' where name = 'Glute Bridge Hold' and is_global;
+
+-- ----------------------------------------------------- realtime publication
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'feed_cheers'
+  ) then
+    alter publication supabase_realtime add table public.feed_cheers;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'feed_posts'
+  ) then
+    alter publication supabase_realtime add table public.feed_posts;
+  end if;
+end $$;
 
 -- ---------------------------------------------------------------- buckets
 insert into storage.buckets (id, name, public)

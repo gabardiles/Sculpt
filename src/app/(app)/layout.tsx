@@ -1,4 +1,5 @@
 import { TabBar } from "@/components/nav/TabBar";
+import { CheerListener } from "@/components/live/CheerListener";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </div>
       <TabBar />
+      <CheerListener />
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+import { createClient as createBareClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type {
   Exercise,
@@ -40,9 +42,12 @@ export async function getActiveProgram(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ): Promise<ProgramWithDays | null> {
+  // One round-trip: program + days + exercises nested.
   const { data: program } = await supabase
     .from("programs")
-    .select("*")
+    .select(
+      "*, program_days(*, program_exercises(*, exercise:exercises(*)))"
+    )
     .eq("user_id", userId)
     .eq("active", true)
     .order("created_at", { ascending: false })
@@ -50,17 +55,16 @@ export async function getActiveProgram(
     .maybeSingle();
   if (!program) return null;
 
-  const { data: days } = await supabase
-    .from("program_days")
-    .select("*, program_exercises(*, exercise:exercises(*))")
-    .eq("program_id", program.id)
-    .order("day_index");
+  type NestedDay = ProgramDay & {
+    program_exercises: (ProgramExercise & { exercise: Exercise })[];
+  };
+  const days = ((program.program_days ?? []) as NestedDay[])
+    .slice()
+    .sort((a, b) => a.day_index - b.day_index);
 
   return {
     ...(program as Program),
-    days: ((days ?? []) as Array<
-      ProgramDay & { program_exercises: (ProgramExercise & { exercise: Exercise })[] }
-    >).map((d) => ({
+    days: days.map((d) => ({
       ...d,
       exercises: [...(d.program_exercises ?? [])].sort((a, b) => a.sort - b.sort),
     })),
@@ -82,18 +86,36 @@ export async function getCycleLogs(
   return (data ?? []) as CycleLogRow[];
 }
 
-export async function getQuoteOfTheDay(
-  supabase: Awaited<ReturnType<typeof createClient>>
-): Promise<Quote | null> {
-  const { data } = await supabase.from("quotes").select("*");
-  const quotes = (data ?? []) as Quote[];
-  if (!quotes.length) return null;
-  const dayOfYear = Math.floor(
-    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86_400_000
-  );
-  // Stable per-day rotation; quotes come back in arbitrary but consistent order.
-  quotes.sort((a, b) => a.id.localeCompare(b.id));
-  return quotes[dayOfYear % quotes.length];
+// Quotes are global and tiny — cache them in the server for a day instead
+// of re-fetching on every dashboard render.
+const getCachedQuotes = unstable_cache(
+  async (): Promise<Quote[]> => {
+    const supabase = createBareClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder-anon-key",
+      { auth: { persistSession: false } }
+    );
+    const { data } = await supabase.from("quotes").select("*");
+    return (data ?? []) as Quote[];
+  },
+  ["quotes"],
+  { revalidate: 86_400 }
+);
+
+export async function getQuoteOfTheDay(): Promise<Quote | null> {
+  try {
+    const quotes = await getCachedQuotes();
+    if (!quotes.length) return null;
+    const dayOfYear = Math.floor(
+      (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) /
+        86_400_000
+    );
+    // Stable per-day rotation; sort for a consistent order.
+    quotes.sort((a, b) => a.id.localeCompare(b.id));
+    return quotes[dayOfYear % quotes.length];
+  } catch {
+    return null;
+  }
 }
 
 export async function getGoals(

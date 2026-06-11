@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const [logs, quote, goals, { data: setRows }, { data: friendRows }] =
     await Promise.all([
       getCycleLogs(supabase, user.id, dayIds),
-      getQuoteOfTheDay(supabase),
+      getQuoteOfTheDay(),
       getGoals(supabase, user.id),
       supabase
         .from("set_logs")
