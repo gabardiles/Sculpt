@@ -3,14 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Check,
-  Minus,
-  PlayCircle,
-  Plus,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Check, PlayCircle, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
@@ -37,12 +30,14 @@ export interface WorkoutExercise {
   sets: number;
   lastWeight: number | null;
   lastReps: number | null;
+  lastSets: number | null;
   prevCycleWeight: number | null;
 }
 
 interface EntryState {
   weight: string; // text so she can type freely; parsed on save
   reps: string;
+  sets: string;
   done: boolean;
 }
 
@@ -76,6 +71,7 @@ export function WorkoutClient({
                 ? String(REP_DEFAULT.timed[phase])
                 : "",
           reps: String(ex.unit === "s" ? "" : REP_DEFAULT[ex.repProfile][phase]),
+          sets: String(ex.lastSets ?? ex.sets),
           done: false,
         },
       ])
@@ -102,27 +98,6 @@ export function WorkoutClient({
     []
   );
 
-  // Step size matches the movement: ±2.5 kg suits a barbell, but pump work
-  // (curls, raises, kickbacks) moves in ±1 kg. Timed holds step ±5 s.
-  function stepSize(ex: WorkoutExercise): number {
-    if (ex.unit === "s") return 5;
-    return ex.repProfile === "pump" ? 1 : 2.5;
-  }
-
-  function step(ex: WorkoutExercise, delta: number) {
-    setEntries((prev) => {
-      const cur = parseFloat(prev[ex.exerciseId].weight.replace(",", ".")) || 0;
-      const next = Math.max(0, cur + delta * stepSize(ex));
-      return {
-        ...prev,
-        [ex.exerciseId]: {
-          ...prev[ex.exerciseId],
-          weight: next === 0 ? "" : String(next),
-        },
-      };
-    });
-  }
-
   function markDone(ex: WorkoutExercise, isLast: boolean) {
     update(ex.exerciseId, { done: true });
     setExpanded(null);
@@ -141,10 +116,12 @@ export function WorkoutClient({
         const e = entries[ex.exerciseId];
         const w = parseFloat(e.weight.replace(",", "."));
         const r = parseInt(e.reps, 10);
+        const s = parseInt(e.sets, 10);
         return {
           exerciseId: ex.exerciseId,
           weightKg: Number.isFinite(w) && w > 0 ? w : null,
           reps: Number.isFinite(r) && r > 0 ? r : null,
+          sets: Number.isFinite(s) && s > 0 ? s : null,
         };
       });
     const res = await completeWorkout({
@@ -249,7 +226,7 @@ export function WorkoutClient({
                           {/* e.g. LAST: 12 kg × 12 × 3 */}
                           {" "}· LAST: {formatKg(ex.lastWeight)} {ex.unit}
                           {ex.unit === "kg" && ex.lastReps != null && (
-                            <> × {ex.lastReps} × {ex.sets}</>
+                            <> × {ex.lastReps} × {ex.lastSets ?? ex.sets}</>
                           )}
                           {trendUp && <span className="text-sage-deep"> ↑</span>}
                         </>
@@ -277,63 +254,63 @@ export function WorkoutClient({
                   </span>
                 </button>
 
-                {/* expanded logging panel */}
+                {/* expanded logging panel — KG / REP / SET, that's it */}
                 {isOpen && (
                   <div className="border-t border-white/50 px-5 py-4 animate-fade-up">
-                    <div className="flex items-center justify-center gap-4">
-                      <button
-                        aria-label="Decrease weight"
-                        className="flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 bg-white/50 active:bg-ink/5"
-                        onClick={() => step(ex, -1)}
-                      >
-                        <Minus size={18} strokeWidth={1.5} />
-                      </button>
-                      <div className="flex items-baseline gap-1">
+                    <div className="grid grid-cols-3 gap-2">
+                      <label className="block">
+                        <span className="eyebrow block text-center">
+                          {ex.unit === "s" ? "SEC" : "KG"}
+                        </span>
                         <input
+                          type="number"
                           inputMode="decimal"
-                          aria-label="Weight"
+                          step="0.5"
+                          min="0"
                           placeholder="—"
                           value={e.weight}
                           onChange={(ev) =>
                             update(ex.exerciseId, { weight: ev.target.value })
                           }
-                          className="w-24 bg-transparent text-center font-mono text-4xl font-light outline-none placeholder:text-ink/30"
+                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
                         />
-                        <MonoNumber className="text-sm text-ink-soft">
-                          {ex.unit}
-                        </MonoNumber>
-                      </div>
-                      <button
-                        aria-label="Increase weight"
-                        className="flex h-12 w-12 items-center justify-center rounded-full border border-ink/15 bg-white/50 active:bg-ink/5"
-                        onClick={() => step(ex, 1)}
-                      >
-                        <Plus size={18} strokeWidth={1.5} />
-                      </button>
+                      </label>
+                      {ex.unit === "kg" && (
+                        <label className="block">
+                          <span className="eyebrow block text-center">REP</span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min="0"
+                            placeholder="—"
+                            value={e.reps}
+                            onChange={(ev) =>
+                              update(ex.exerciseId, { reps: ev.target.value })
+                            }
+                            className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
+                          />
+                        </label>
+                      )}
+                      <label className="block">
+                        <span className="eyebrow block text-center">SET</span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          placeholder="—"
+                          value={e.sets}
+                          onChange={(ev) =>
+                            update(ex.exerciseId, { sets: ev.target.value })
+                          }
+                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
+                        />
+                      </label>
                     </div>
 
-                    {ex.unit === "s" && (
-                      <MonoNumber className="mt-3 block text-center text-xs text-ink-soft/80">
-                        target {REP_TARGETS.timed[phase]} hold
-                      </MonoNumber>
-                    )}
-                    {ex.unit === "kg" && (
-                      <div className="mt-3 flex items-center justify-center gap-2">
-                        <MonoNumber className="text-xs text-ink-soft">reps</MonoNumber>
-                        <input
-                          inputMode="numeric"
-                          aria-label="Reps"
-                          value={e.reps}
-                          onChange={(ev) =>
-                            update(ex.exerciseId, { reps: ev.target.value })
-                          }
-                          className="w-12 rounded-full border border-ink/10 bg-white/50 py-1 text-center font-mono text-sm outline-none"
-                        />
-                        <MonoNumber className="text-xs text-ink-soft/80">
-                          target {REP_TARGETS[ex.repProfile][phase]}
-                        </MonoNumber>
-                      </div>
-                    )}
+                    <MonoNumber className="mt-2 block text-center text-xs text-ink-soft/80">
+                      target {REP_TARGETS[ex.repProfile][phase]}
+                      {ex.unit === "s" ? " hold" : " reps"}
+                    </MonoNumber>
 
                     <div className="mt-4 flex gap-2">
                       {e.done ? (

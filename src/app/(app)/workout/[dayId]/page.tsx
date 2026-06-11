@@ -22,11 +22,12 @@ export default async function WorkoutPage({
   if (!day) notFound();
 
   const dayIds = program.days.map((d) => d.id);
-  const logs = await getCycleLogs(supabase, user.id, dayIds);
-  const state = deriveCycleState(logs, dayIds, program.cycle_floor);
-
   const exerciseIds = day.exercises.map((pe) => pe.exercise_id);
-  const history = await getSetHistory(supabase, user.id, exerciseIds);
+  const [logs, history] = await Promise.all([
+    getCycleLogs(supabase, user.id, dayIds),
+    getSetHistory(supabase, user.id, exerciseIds),
+  ]);
+  const state = deriveCycleState(logs, dayIds, program.cycle_floor);
 
   // "LAST: 40 kg" — most recent weight in the SAME phase (her hard-week
   // weight shouldn't show during light week). Trend arrow compares against
@@ -58,6 +59,7 @@ export default async function WorkoutPage({
       sets: pe.sets,
       lastWeight: last?.weight_kg ?? null,
       lastReps: last?.reps ?? null,
+      lastSets: last?.sets ?? null,
       prevCycleWeight: prevCycleRow?.weight_kg ?? null,
     };
   });

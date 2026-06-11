@@ -113,6 +113,7 @@ export interface SetHistoryRow {
   exercise_id: string;
   weight_kg: number | null;
   reps: number | null;
+  sets: number | null;
   workout_log: {
     week_phase: string;
     cycle_number: number;
@@ -129,7 +130,7 @@ export async function getSetHistory(
   const { data } = await supabase
     .from("set_logs")
     .select(
-      "exercise_id, weight_kg, reps, workout_log:workout_logs!inner(week_phase, cycle_number, completed_at, user_id)"
+      "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(week_phase, cycle_number, completed_at, user_id)"
     )
     .eq("workout_log.user_id", userId)
     .in("exercise_id", exerciseIds);

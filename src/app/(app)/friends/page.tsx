@@ -9,22 +9,28 @@ import type { FeedPost } from "@/lib/types";
 
 export default async function FriendsPage() {
   const { supabase, user } = await requireUser();
-  const profile = await getProfile(supabase, user.id);
 
-  // Who are my friends?
-  const { data: friendRows } = await supabase
-    .from("friends")
-    .select("friend_id")
-    .eq("user_id", user.id);
+  const [profile, { data: friendRows }] = await Promise.all([
+    getProfile(supabase, user.id),
+    supabase.from("friends").select("friend_id").eq("user_id", user.id),
+  ]);
   const friendIds = ((friendRows ?? []) as { friend_id: string }[]).map(
     (r) => r.friend_id
   );
 
-  // Names for me + friends (RLS lets friends read each other's profile).
-  const { data: people } = await supabase
-    .from("profiles")
-    .select("id, name")
-    .in("id", [user.id, ...friendIds]);
+  // Names (RLS lets friends read each other's profile) + the shared feed.
+  const [{ data: people }, { data: postsData }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, name")
+      .in("id", [user.id, ...friendIds]),
+    supabase
+      .from("feed_posts")
+      .select("*")
+      .in("user_id", [user.id, ...friendIds])
+      .order("created_at", { ascending: false })
+      .limit(60),
+  ]);
   const nameById = new Map(
     ((people ?? []) as { id: string; name: string | null }[]).map((p) => [
       p.id,
@@ -35,14 +41,6 @@ export default async function FriendsPage() {
     id,
     name: nameById.get(id) ?? "Someone",
   }));
-
-  // The shared feed: my posts + my friends' posts.
-  const { data: postsData } = await supabase
-    .from("feed_posts")
-    .select("*")
-    .in("user_id", [user.id, ...friendIds])
-    .order("created_at", { ascending: false })
-    .limit(60);
   const posts = (postsData ?? []) as FeedPost[];
 
   // Cheers for the visible posts.
@@ -82,6 +80,11 @@ export default async function FriendsPage() {
     createdAt: p.created_at,
     cheerCount: cheers.filter((c) => c.post_id === p.id).length,
     cheeredByMe: cheers.some((c) => c.post_id === p.id && c.user_id === user.id),
+    cheerNames: cheers
+      .filter((c) => c.post_id === p.id)
+      .map((c) =>
+        c.user_id === user.id ? "You" : nameById.get(c.user_id) ?? "Someone"
+      ),
   }));
 
   return (

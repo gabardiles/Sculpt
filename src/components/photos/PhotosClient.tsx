@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { Camera, Columns2, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { recordProgressPhoto, deleteProgressPhoto } from "@/lib/actions";
@@ -30,7 +29,6 @@ export function PhotosClient({
   cycle: number;
   weekIndex: number;
 }) {
-  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [viewing, setViewing] = useState<PhotoItem | null>(null);
@@ -66,7 +64,6 @@ export function PhotosClient({
           weekLabel: `W${weekIndex}`,
           storagePath: path,
         });
-        router.refresh();
       }
     } finally {
       setUploading(false);
@@ -92,7 +89,6 @@ export function PhotosClient({
         ref={fileRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
@@ -186,7 +182,6 @@ export function PhotosClient({
                 onClick={async () => {
                   await deleteProgressPhoto(viewing.id, viewing.storagePath);
                   setViewing(null);
-                  router.refresh();
                 }}
               >
                 <Trash2 size={15} strokeWidth={1.5} /> Delete

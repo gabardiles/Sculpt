@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Camera,
   Check,
@@ -47,6 +46,7 @@ export interface FeedItem {
   createdAt: string;
   cheerCount: number;
   cheeredByMe: boolean;
+  cheerNames: string[];
 }
 
 export function FriendsClient({
@@ -60,7 +60,6 @@ export function FriendsClient({
   friends: FriendRow[];
   feed: FeedItem[];
 }) {
-  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [copied, setCopied] = useState(false);
   const [code, setCode] = useState("");
@@ -90,7 +89,6 @@ export function FriendsClient({
     const res = await addFriendByCode(fd);
     if (res.ok) {
       setCode("");
-      router.refresh();
     } else {
       setAddError(res.error);
     }
@@ -104,7 +102,6 @@ export function FriendsClient({
     await createFeedPost({ type: "message", body: message, storagePath: null });
     setMessage("");
     setPosting(false);
-    router.refresh();
   }
 
   async function postPhoto(file: File) {
@@ -123,7 +120,6 @@ export function FriendsClient({
           storagePath: path,
         });
         setMessage("");
-        router.refresh();
       }
     } finally {
       setPosting(false);
@@ -133,61 +129,13 @@ export function FriendsClient({
 
   return (
     <div>
-      {/* my code + add friend */}
-      <Card className="mt-5 p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <Eyebrow>YOUR CODE</Eyebrow>
-            <button
-              onClick={copyCode}
-              className="mt-0.5 flex min-h-10 items-center gap-2"
-              aria-label="Copy your friend code"
-            >
-              <MonoNumber className="text-xl tracking-[0.2em]">
-                {myCode}
-              </MonoNumber>
-              {copied ? (
-                <Check size={15} strokeWidth={1.8} className="text-sage-deep" />
-              ) : (
-                <Copy size={15} strokeWidth={1.5} className="text-ink-soft" />
-              )}
-            </button>
-          </div>
-          {friends.length > 0 && (
-            <button
-              onClick={() => setManageOpen(true)}
-              className="flex min-h-12 items-center gap-1.5 rounded-full px-3 text-ink-soft active:bg-ink/5"
-            >
-              <Users size={16} strokeWidth={1.5} />
-              <MonoNumber className="text-xs">{friends.length}</MonoNumber>
-            </button>
-          )}
-        </div>
-
-        <form onSubmit={addFriend} className="mt-3 flex gap-2">
-          <input
-            value={code}
-            onChange={(e) => setCode(e.target.value.toUpperCase())}
-            placeholder="Friend's code"
-            maxLength={6}
-            className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-white/60 px-4 text-center font-mono text-sm tracking-[0.2em] uppercase outline-none focus:border-blush-deep"
-          />
-          <PillButton type="submit" disabled={adding || !code.trim()} className="shrink-0">
-            <UserPlus size={16} strokeWidth={1.5} /> Add
-          </PillButton>
-        </form>
-        {addError && (
-          <p className="mt-2 text-center text-xs text-blush-deep">{addError}</p>
-        )}
-      </Card>
-
-      {/* composer */}
+      {/* one row: composer + photo + send + friends/invite. Feed leads. */}
       <form onSubmit={postMessage} className="mt-4 flex items-center gap-2">
+        {/* No `capture` attr: mobile offers camera OR photo library. */}
         <input
           ref={fileRef}
           type="file"
           accept="image/*"
-          capture="environment"
           className="hidden"
           onChange={(e) => {
             const f = e.target.files?.[0];
@@ -218,76 +166,173 @@ export function FriendsClient({
         >
           <Send size={17} strokeWidth={1.5} />
         </button>
+        <button
+          type="button"
+          aria-label="Friends and invites"
+          onClick={() => setManageOpen(true)}
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white/60 text-ink-soft active:bg-ink/5"
+        >
+          <Users size={18} strokeWidth={1.5} />
+        </button>
       </form>
 
       {/* feed */}
       {feed.length === 0 ? (
         <p className="mt-12 text-center text-sm font-light text-ink-soft">
-          {friends.length === 0
-            ? "Add a friend with her code — the feed starts there."
-            : "Quiet for now. Your next workout will show up here."}
+          {friends.length === 0 ? (
+            <>
+              Add a friend with her code — tap{" "}
+              <Users size={14} className="inline" strokeWidth={1.5} /> above to
+              start.
+            </>
+          ) : (
+            "Quiet for now. Your next workout will show up here."
+          )}
         </p>
       ) : (
         <ul className="mt-6 flex flex-col gap-3">
           {feed.map((item) => (
             <li key={item.id}>
-              <FeedCard item={item} onChanged={() => router.refresh()} />
+              <FeedCard item={item} />
             </li>
           ))}
         </ul>
       )}
 
-      {/* manage friends */}
+      {/* friends, codes & invites — tucked away in one sheet */}
       <Sheet open={manageOpen} onClose={() => setManageOpen(false)} title="Friends">
-        <ul className="flex flex-col gap-2 pb-2">
-          {friends.map((f) => (
-            <li
-              key={f.id}
-              className="glass flex items-center justify-between px-4 py-3"
-            >
-              <span className="text-sm">{f.name}</span>
-              <button
-                aria-label={`Remove ${f.name}`}
-                onClick={async () => {
-                  await removeFriend(f.id);
-                  router.refresh();
-                }}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
-              >
-                <Trash2 size={15} strokeWidth={1.5} />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="pb-2">
+          <Eyebrow>YOUR CODE</Eyebrow>
+          <button
+            onClick={copyCode}
+            className="mt-0.5 flex min-h-12 items-center gap-2"
+            aria-label="Copy your friend code"
+          >
+            <MonoNumber className="text-2xl tracking-[0.2em]">
+              {myCode}
+            </MonoNumber>
+            {copied ? (
+              <Check size={16} strokeWidth={1.8} className="text-sage-deep" />
+            ) : (
+              <Copy size={16} strokeWidth={1.5} className="text-ink-soft" />
+            )}
+          </button>
+
+          <form onSubmit={addFriend} className="mt-4 flex gap-2">
+            <input
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="Friend's code"
+              maxLength={6}
+              className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-white/60 px-4 text-center font-mono text-sm tracking-[0.2em] uppercase outline-none focus:border-blush-deep"
+            />
+            <PillButton type="submit" disabled={adding || !code.trim()} className="shrink-0">
+              <UserPlus size={16} strokeWidth={1.5} /> Add
+            </PillButton>
+          </form>
+          {addError && (
+            <p className="mt-2 text-center text-xs text-blush-deep">{addError}</p>
+          )}
+
+          {friends.length > 0 && (
+            <ul className="mt-5 flex flex-col gap-2">
+              {friends.map((f) => (
+                <li
+                  key={f.id}
+                  className="glass flex items-center justify-between px-4 py-3"
+                >
+                  <span className="text-sm">{f.name}</span>
+                  <button
+                    aria-label={`Remove ${f.name}`}
+                    onClick={() => removeFriend(f.id)}
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
+                  >
+                    <Trash2 size={15} strokeWidth={1.5} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </Sheet>
     </div>
   );
 }
 
-function FeedCard({
-  item,
-  onChanged,
-}: {
-  item: FeedItem;
-  onChanged: () => void;
-}) {
+function FeedCard({ item }: { item: FeedItem }) {
   const [cheered, setCheered] = useState(item.cheeredByMe);
-  const [count, setCount] = useState(item.cheerCount);
+  // Optimistic names so the cheer pops instantly, no waiting on the server.
+  const [names, setNames] = useState<string[]>(item.cheerNames);
 
   async function cheer() {
     const next = !cheered;
     setCheered(next);
-    setCount((c) => c + (next ? 1 : -1));
+    setNames((prev) =>
+      next ? [...prev.filter((n) => n !== "You"), "You"] : prev.filter((n) => n !== "You")
+    );
     await toggleCheer(item.id, next);
   }
 
+  const cheerLabel =
+    names.length === 0
+      ? "Cheer"
+      : names.length <= 2
+        ? names.join(" & ")
+        : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+
   const phase = item.metadata?.phase as string | undefined;
+  const dayName = item.metadata?.day_name as string | undefined;
+
+  // Workouts and PBs are compact: everything on one row.
+  if (item.type === "workout" || item.type === "pb") {
+    return (
+      <Card done={item.type === "workout"} className="flex items-center gap-2.5 px-4 py-3">
+        {item.type === "workout" ? (
+          <Check size={17} strokeWidth={2.2} className="shrink-0 text-sage-deep" />
+        ) : (
+          <TrendingUp size={17} strokeWidth={1.9} className="shrink-0 text-blush-deep" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-sm">
+          <span className="font-medium">{item.authorName}</span>{" "}
+          <span className="font-light">
+            {item.type === "workout" ? (dayName ?? item.body) : item.body}
+          </span>
+          {phase && (
+            <MonoNumber className="ml-1.5 text-[10px] uppercase text-ink-soft">
+              {phase}
+            </MonoNumber>
+          )}
+          <MonoNumber className="ml-1.5 text-[10px] text-ink-soft">
+            {formatDay(item.createdAt)}
+          </MonoNumber>
+        </span>
+        <button
+          onClick={cheer}
+          aria-label={cheered ? "Remove cheer" : "Cheer"}
+          className="flex min-h-12 shrink-0 items-center gap-1.5 rounded-full px-2"
+        >
+          <Heart
+            size={20}
+            strokeWidth={1.6}
+            className={cn(
+              "transition-colors",
+              cheered
+                ? "fill-blush-deep text-blush-deep heart-pop"
+                : "text-ink-soft"
+            )}
+          />
+          {names.length > 0 && (
+            <span className="max-w-24 truncate text-xs font-medium text-blush-deep">
+              {cheerLabel}
+            </span>
+          )}
+        </button>
+      </Card>
+    );
+  }
 
   return (
-    <Card
-      done={item.type === "workout"}
-      className="p-4"
-    >
+    <Card className="p-4">
       <div className="flex items-baseline justify-between">
         <span className="text-sm font-medium">{item.authorName}</span>
         <MonoNumber className="text-[10px] text-ink-soft">
@@ -296,23 +341,6 @@ function FeedCard({
       </div>
 
       <div className="mt-1.5">
-        {item.type === "workout" && (
-          <p className="flex items-center gap-2 text-sm font-light">
-            <Check size={15} strokeWidth={2} className="shrink-0 text-sage-deep" />
-            {item.body}
-            {phase && (
-              <MonoNumber className="text-[10px] uppercase text-ink-soft">
-                {phase}
-              </MonoNumber>
-            )}
-          </p>
-        )}
-        {item.type === "pb" && (
-          <p className="flex items-center gap-2 text-sm">
-            <TrendingUp size={15} strokeWidth={1.8} className="shrink-0 text-blush-deep" />
-            <span className="font-light">{item.body}</span>
-          </p>
-        )}
         {item.type === "message" && (
           <p className="text-sm font-light leading-relaxed">“{item.body}”</p>
         )}
@@ -333,31 +361,40 @@ function FeedCard({
         )}
       </div>
 
-      <div className="mt-2 flex items-center justify-between">
+      <div className="mt-3 flex items-center justify-between">
         <button
           onClick={cheer}
           aria-label={cheered ? "Remove cheer" : "Cheer"}
-          className="flex min-h-10 items-center gap-1.5 rounded-full px-2 -ml-2"
+          className={cn(
+            "-ml-1 flex min-h-12 items-center gap-2 rounded-full px-3 transition-colors",
+            cheered ? "bg-blush/30" : "active:bg-blush/20"
+          )}
         >
           <Heart
-            size={16}
+            size={22}
             strokeWidth={1.6}
             className={cn(
               "transition-colors",
-              cheered ? "fill-blush-deep text-blush-deep" : "text-ink-soft/80"
+              cheered
+                ? "fill-blush-deep text-blush-deep heart-pop"
+                : "text-ink-soft"
             )}
           />
-          {count > 0 && (
-            <MonoNumber className="text-xs text-ink-soft">{count}</MonoNumber>
-          )}
+          <span
+            className={cn(
+              "text-sm",
+              names.length
+                ? "font-medium text-blush-deep"
+                : "font-light text-ink-soft"
+            )}
+          >
+            {cheerLabel}
+          </span>
         </button>
         {item.mine && (item.type === "message" || item.type === "photo") && (
           <button
             aria-label="Delete post"
-            onClick={async () => {
-              await deleteFeedPost(item.id, item.storagePath);
-              onChanged();
-            }}
+            onClick={() => deleteFeedPost(item.id, item.storagePath)}
             className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
           >
             <Trash2 size={14} strokeWidth={1.5} />

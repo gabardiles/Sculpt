@@ -106,8 +106,11 @@ create table if not exists public.set_logs (
   workout_log_id uuid not null references public.workout_logs (id) on delete cascade,
   exercise_id uuid not null references public.exercises (id),
   weight_kg numeric,
-  reps int
+  reps int,
+  sets int
 );
+
+alter table public.set_logs add column if not exists sets int;
 
 create table if not exists public.body_weight (
   id uuid primary key default gen_random_uuid(),

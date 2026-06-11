@@ -96,6 +96,23 @@ body {
   }
 }
 
+/* Cheer hearts bounce when tapped — small joy, big feedback. */
+.heart-pop {
+  animation: heart-pop 0.35s ease;
+}
+
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
 /* The signature completion moment: check draws in over 400ms. */
 .check-draw {
   stroke-dasharray: 32;

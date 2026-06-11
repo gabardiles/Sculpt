@@ -22,8 +22,10 @@ import type { FeedPost } from "@/lib/types";
 
 export default async function DashboardPage() {
   const { supabase, user } = await requireUser();
-  const profile = await getProfile(supabase, user.id);
-  const program = await getActiveProgram(supabase, user.id);
+  const [profile, program] = await Promise.all([
+    getProfile(supabase, user.id),
+    getActiveProgram(supabase, user.id),
+  ]);
 
   if (!profile?.name || !program) redirect("/onboarding");
 
@@ -36,7 +38,7 @@ export default async function DashboardPage() {
       supabase
         .from("set_logs")
         .select(
-          "exercise_id, weight_kg, reps, workout_log:workout_logs!inner(id, user_id, completed_at)"
+          "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(id, user_id, completed_at)"
         )
         .eq("workout_log.user_id", user.id),
       supabase.from("friends").select("friend_id").eq("user_id", user.id),
@@ -50,11 +52,12 @@ export default async function DashboardPage() {
     exercise_id: string;
     weight_kg: number | null;
     reps: number | null;
+    sets: number | null;
     workout_log: { id: string; completed_at: string };
   };
   const sets = (setRows ?? []) as unknown as SetRow[];
 
-  // Volume per session = Σ weight × reps × 3 sets (one set_log per exercise).
+  // Volume per session = Σ weight × reps × sets (one set_log per exercise).
   const volumeBySession = new Map<string, { at: string; volume: number }>();
   for (const s of sets) {
     const entry = volumeBySession.get(s.workout_log.id) ?? {
@@ -62,7 +65,8 @@ export default async function DashboardPage() {
       volume: 0,
     };
     if (s.weight_kg != null && s.reps != null) {
-      entry.volume += Number(s.weight_kg) * s.reps * SETS_PER_EXERCISE;
+      entry.volume +=
+        Number(s.weight_kg) * s.reps * (s.sets ?? SETS_PER_EXERCISE);
     }
     volumeBySession.set(s.workout_log.id, entry);
   }

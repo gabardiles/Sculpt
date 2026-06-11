@@ -93,6 +93,7 @@ export interface WorkoutEntry {
   exerciseId: string;
   weightKg: number | null;
   reps: number | null;
+  sets: number | null;
 }
 
 export async function completeWorkout(input: {
@@ -141,6 +142,7 @@ export async function completeWorkout(input: {
         exercise_id: e.exerciseId,
         weight_kg: e.weightKg,
         reps: e.reps,
+        sets: e.sets,
       }))
     );
   }
