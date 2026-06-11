@@ -104,6 +104,21 @@ export function deriveCycleState(
     ? Math.max(...logs.map((l) => l.cycle_number))
     : 0;
   const cycle = Math.max(maxLogged, cycleFloor, 1);
+
+  // A program with no days would otherwise mark every phase "finished"
+  // and loop the cycle counter forever.
+  if (orderedDayIds.length === 0) {
+    return {
+      cycle,
+      phase: "light",
+      weekIndex: 1,
+      doneDayIds: new Set(),
+      nextDayId: null,
+      weekClosable: false,
+      cycleJustCompleted: false,
+    };
+  }
+
   const closed = new Set(
     closures.map((c) => `${c.cycle_number}:${c.week_phase}`)
   );

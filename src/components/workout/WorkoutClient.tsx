@@ -11,6 +11,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { RestTimer } from "@/components/workout/RestTimer";
 import { completeWorkout, createFeedPost } from "@/lib/actions";
 import { createClient } from "@/lib/supabase/client";
+import { validateImageFile } from "@/lib/uploads";
 import { dayImage } from "@/lib/editorial";
 import {
   REP_DEFAULT,
@@ -147,8 +148,12 @@ export function WorkoutClient({
     }
   }
 
+  // Ref-based lock: state alone can't stop two taps in the same frame.
+  const submittingRef = useRef(false);
+
   async function save() {
-    if (feel == null || saving) return;
+    if (feel == null || submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     const payload = exercises
       .filter((ex) => entries[ex.exerciseId].done)
@@ -176,11 +181,17 @@ export function WorkoutClient({
       // The celebration doubles as the share moment — no auto-redirect.
       setCelebrating(true);
     } else {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
 
   async function shareSelfie(file: File) {
+    const problem = validateImageFile(file);
+    if (problem) {
+      alert(problem);
+      return;
+    }
     setSharing(true);
     try {
       const supabase = createClient();

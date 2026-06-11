@@ -242,6 +242,10 @@ create policy "profiles own read" on public.profiles
 drop policy if exists "profiles own update" on public.profiles;
 create policy "profiles own update" on public.profiles
   for update using (auth.uid() = id);
+-- Column-level guard: only `name` is user-editable (is_admin etc. are not).
+revoke update on public.profiles from authenticated;
+revoke update on public.profiles from anon;
+grant update (name) on public.profiles to authenticated;
 drop policy if exists "profiles friends read" on public.profiles;
 create policy "profiles friends read" on public.profiles
   for select using (
@@ -298,7 +302,15 @@ create policy "program_exercises write" on public.program_exercises
 
 drop policy if exists "workout_logs own" on public.workout_logs;
 create policy "workout_logs own" on public.workout_logs
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+  for all using (user_id = auth.uid())
+  with check (
+    user_id = auth.uid()
+    and exists (
+      select 1 from public.program_days d
+      join public.programs p on p.id = d.program_id
+      where d.id = program_day_id and p.user_id = auth.uid()
+    )
+  );
 drop policy if exists "set_logs own" on public.set_logs;
 create policy "set_logs own" on public.set_logs
   for all using (exists (
@@ -343,16 +355,37 @@ drop policy if exists "feed delete own" on public.feed_posts;
 create policy "feed delete own" on public.feed_posts
   for delete using (user_id = auth.uid());
 
+-- Cheers are only visible/insertable where the underlying post is visible.
 drop policy if exists "cheers read visible posts" on public.feed_cheers;
 create policy "cheers read visible posts" on public.feed_cheers
   for select using (
-    exists (select 1 from public.feed_posts p where p.id = post_id)
+    exists (
+      select 1 from public.feed_posts p
+      where p.id = post_id
+        and (
+          p.user_id = auth.uid()
+          or exists (
+            select 1 from public.friends f
+            where f.user_id = auth.uid() and f.friend_id = p.user_id
+          )
+        )
+    )
   );
 drop policy if exists "cheers insert own" on public.feed_cheers;
 create policy "cheers insert own" on public.feed_cheers
   for insert with check (
     user_id = auth.uid()
-    and exists (select 1 from public.feed_posts p where p.id = post_id)
+    and exists (
+      select 1 from public.feed_posts p
+      where p.id = post_id
+        and (
+          p.user_id = auth.uid()
+          or exists (
+            select 1 from public.friends f
+            where f.user_id = auth.uid() and f.friend_id = p.user_id
+          )
+        )
+    )
   );
 drop policy if exists "cheers delete own" on public.feed_cheers;
 create policy "cheers delete own" on public.feed_cheers
@@ -708,6 +741,11 @@ on conflict (id) do nothing;
 insert into storage.buckets (id, name, public)
 values ('feed-photos', 'feed-photos', false)
 on conflict (id) do nothing;
+
+update storage.buckets
+set file_size_limit = 10485760, -- 10 MB
+    allowed_mime_types = array['image/jpeg','image/png','image/webp','image/heic','image/heif']
+where id in ('progress-photos', 'feed-photos');
 
 -- Storage POLICIES live in storage_policies.sql (run separately — on some
 -- Supabase projects they must be created via Dashboard → Storage → Policies).

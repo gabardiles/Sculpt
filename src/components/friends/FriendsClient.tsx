@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { validateImageFile } from "@/lib/uploads";
 import {
   addFriendByCode,
   createFeedPost,
@@ -105,6 +106,12 @@ export function FriendsClient({
   }
 
   async function postPhoto(file: File) {
+    const problem = validateImageFile(file);
+    if (problem) {
+      alert(problem);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setPosting(true);
     try {
       const supabase = createClient();

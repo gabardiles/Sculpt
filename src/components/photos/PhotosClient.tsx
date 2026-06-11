@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Camera, Columns2, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { validateImageFile } from "@/lib/uploads";
 import { recordProgressPhoto, deleteProgressPhoto } from "@/lib/actions";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
@@ -50,6 +51,12 @@ export function PhotosClient({
     .filter((p): p is PhotoItem => !!p);
 
   async function upload(file: File) {
+    const problem = validateImageFile(file);
+    if (problem) {
+      alert(problem);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
     setUploading(true);
     try {
       const supabase = createClient();

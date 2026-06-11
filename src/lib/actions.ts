@@ -225,6 +225,10 @@ export async function addFriendByCode(formData: FormData) {
 
 export async function removeFriend(friendId: string) {
   const { supabase, userId } = await requireUserId();
+  // friendId goes into a PostgREST filter string — accept UUIDs only.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(friendId)) {
+    return;
+  }
   // Both directions — the delete policy allows removing either side.
   await supabase
     .from("friends")
