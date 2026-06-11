@@ -200,11 +200,11 @@ export default async function DashboardPage() {
                 <Eyebrow className="text-white/75">
                   NEXT UP · DAY {nextDay.day_index}
                 </Eyebrow>
-                <div className="mt-1 flex items-end justify-between gap-3">
+                <div className="mt-1 flex items-center justify-between gap-3">
                   <h2 className="text-4xl font-light leading-tight tracking-wide text-white">
                     {nextDay.name}
                   </h2>
-                  <span className="mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush text-ink">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush text-ink">
                     <ChevronRight size={20} strokeWidth={2} />
                   </span>
                 </div>

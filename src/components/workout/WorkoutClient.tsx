@@ -205,35 +205,27 @@ export function WorkoutClient({
 
   return (
     <main className="animate-fade-in">
-      <header className="flex items-center justify-between">
-        <Link
-          href="/"
-          aria-label="Back"
-          className="-ml-2 flex h-12 w-12 items-center justify-center rounded-full text-ink-soft active:bg-ink/5"
-        >
-          <ArrowLeft size={20} strokeWidth={1.5} />
-        </Link>
-        <MonoNumber className="text-xs uppercase tracking-[0.14em] text-ink-soft">
-          CYCLE {cycle} · WEEK {weekIndex} · {phase.toUpperCase()}
-        </MonoNumber>
-        <div className="w-12" />
-      </header>
-
-      {/* editorial banner — big number, attitude */}
-      <div className="relative mt-2 h-52 overflow-hidden rounded-[22px]">
+      {/* editorial banner — full bleed, flush with the top edge */}
+      <div className="relative -mx-5 -mt-[max(1.5rem,env(safe-area-inset-top))] h-72 overflow-hidden rounded-b-[28px]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={dayImage(day.index)}
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-ink/10" />
-        <MonoNumber
-          aria-hidden
-          className="absolute -top-3 right-3 text-[96px] font-light leading-none text-white/25"
-        >
-          {day.index}
-        </MonoNumber>
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-ink/30" />
+        <div className="absolute inset-x-0 top-[max(0.5rem,env(safe-area-inset-top))] flex items-center justify-between px-3">
+          <Link
+            href="/"
+            aria-label="Back"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-ink/25 text-white backdrop-blur-sm active:bg-ink/40"
+          >
+            <ArrowLeft size={20} strokeWidth={1.8} />
+          </Link>
+          <MonoNumber className="rounded-full bg-ink/25 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+            CYCLE {cycle} · WEEK {weekIndex} · {phase.toUpperCase()}
+          </MonoNumber>
+        </div>
         <div className="absolute inset-x-0 bottom-0 p-5">
           <Eyebrow className="text-white/75">
             DAY {day.index} · {phase.toUpperCase()} WEEK
