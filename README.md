@@ -1,0 +1,59 @@
+# Sculpt
+
+A minimalist training tracker for girls who lift. Alo Yoga aesthetic — calm,
+airy, glass cards over soft blush gradients. 3-week progressive cycles
+(light → medium → hard), tap-to-complete workouts, weight diary, progress
+photos, goals, and a small friends feed for sharing wins.
+
+## Stack
+
+- Next.js 15 (App Router) · React 19 · TypeScript
+- Tailwind CSS v4 (design tokens in `src/app/globals.css`)
+- Geist Sans + Geist Mono (`geist` package — every number is mono)
+- lucide-react icons
+- Supabase: Postgres + RLS, magic-link auth (invite-only), Storage
+- PWA-ready (manifest + apple-touch-icon), mobile-first at 390px
+
+## Setup
+
+1. **Supabase**: create a project, then run, in order:
+   - `supabase/migrations/0001_schema.sql`
+   - `supabase/migrations/0002_friends.sql`
+   - `supabase/seed.sql` (exercise library, the "Lean & Sculpted" 5-day
+     template program, 40 quotes)
+2. **Auth**: in Supabase Auth settings, disable public signups (the app is
+   invite-only; login uses magic links via `signInWithOtp` with
+   `shouldCreateUser: false`).
+3. **Env**: copy `.env.example` → `.env.local` and fill in the keys.
+4. **Make yourself admin** (enables the `/admin` invite screen):
+   ```sql
+   update public.profiles set is_admin = true
+   where id = (select id from auth.users where email = 'you@example.com');
+   ```
+5. `npm install && npm run dev`
+
+Visit `/styleguide` to verify the design system without auth.
+
+## How the cycle works
+
+State is **derived from logs, never stored**: the current cycle is the
+highest logged `cycle_number` (or the program's manual-reset floor), and the
+current week is the first phase (light → medium → hard) with unfinished days.
+Completing the hard week rolls into the next cycle automatically. Rep targets
+come from the phase (10–12 / 6–8 / 4–6); everything is 3 sets, always.
+See `src/lib/cycle.ts`.
+
+## Friends feed — privacy model
+
+Friends are added mutually with a 6-character code (`add_friend` RPC). The
+feed shares **wins only**: completed workouts, new PBs, gym photos and short
+messages. Body-weight entries and progress photos are never shared — they
+have no path into `feed_posts`, and RLS keeps them owner-only.
+
+## Notes / TODO
+
+- `exercises.instruction_url` is seeded as `null`. Fill in curated
+  `youtube-nocookie.com/embed/...` URLs per exercise; the player appears in
+  the instruction sheet automatically (form cues already show).
+- Icons are generated from brand tokens: `node scripts/generate-icons.mjs`.
+- Parked for v2: weekly recap share-card, deload whisper, duo mode.
