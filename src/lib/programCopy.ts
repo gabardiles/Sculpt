@@ -84,8 +84,10 @@ export const HOW_IT_WORKS = [
       "The cycle rolls over automatically: back to a light week, one " +
       "cycle number higher. Your light-week weights should now be close to " +
       "what medium week was last cycle — that's progressive overload " +
-      "doing its quiet work. The Program tab keeps the history of every " +
-      "cycle, including how each one felt.",
+      "doing its quiet work. Between cycles, Sculpt reviews how the cycle " +
+      "felt and may suggest refreshing an accessory or two whose weights " +
+      "have gone flat. The big lifts always stay — you can't progress " +
+      "what you keep changing.",
   },
   {
     title: "Listening to the body",

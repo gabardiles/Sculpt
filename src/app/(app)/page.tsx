@@ -18,7 +18,12 @@ import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { DayList } from "@/components/dashboard/DayList";
 import { CloseWeekButton } from "@/components/dashboard/CloseWeekButton";
+import {
+  CycleReview,
+  type CycleReviewData,
+} from "@/components/dashboard/CycleReview";
 import { dayImage } from "@/lib/editorial";
+import type { Exercise as ExerciseRow } from "@/lib/types";
 import { Sparkline } from "@/components/weight/Sparkline";
 import type { FeedPost } from "@/lib/types";
 
@@ -41,7 +46,7 @@ export default async function DashboardPage() {
       supabase
         .from("set_logs")
         .select(
-          "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(id, user_id, completed_at)"
+          "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(id, user_id, completed_at, cycle_number)"
         )
         .eq("workout_log.user_id", user.id),
       supabase.from("friends").select("friend_id").eq("user_id", user.id),
@@ -64,7 +69,7 @@ export default async function DashboardPage() {
     weight_kg: number | null;
     reps: number | null;
     sets: number | null;
-    workout_log: { id: string; completed_at: string };
+    workout_log: { id: string; completed_at: string; cycle_number: number };
   };
   const sets = (setRows ?? []) as unknown as SetRow[];
 
@@ -99,6 +104,118 @@ export default async function DashboardPage() {
   const avgFeel = weekFeels.length
     ? weekFeels.reduce((a, b) => a + b, 0) / weekFeels.length
     : null;
+
+  // -------------------------------------------- cycle review (between cycles)
+  // When a cycle just finished, review how it FELT and suggest refreshing
+  // 1–2 pump-tier accessories — never the compounds. Boredom is a real
+  // programming variable; progression on the big lifts is sacred.
+  let review: CycleReviewData | null = null;
+  if (state.cycleJustCompleted && state.cycle > 1) {
+    const prev = state.cycle - 1;
+    const prevLogs = logs.filter((l) => l.cycle_number === prev);
+    const prevFeels = prevLogs
+      .map((l) => l.feel_rating)
+      .filter((f): f is number => f != null);
+    const avgPrevFeel = prevFeels.length
+      ? prevFeels.reduce((a, b) => a + b, 0) / prevFeels.length
+      : null;
+    const hardFeels = prevLogs
+      .filter((l) => l.week_phase === "hard")
+      .map((l) => l.feel_rating)
+      .filter((f): f is number => f != null);
+    const hardAvg = hardFeels.length
+      ? hardFeels.reduce((a, b) => a + b, 0) / hardFeels.length
+      : null;
+
+    // Per-day average feel — a day that consistently rates low gets its
+    // accessories refreshed first.
+    const feelByDay = new Map<string, number[]>();
+    for (const l of prevLogs) {
+      if (l.feel_rating != null) {
+        const arr = feelByDay.get(l.program_day_id) ?? [];
+        arr.push(l.feel_rating);
+        feelByDay.set(l.program_day_id, arr);
+      }
+    }
+    const avgFeelOfDay = (dayId: string) => {
+      const arr = feelByDay.get(dayId) ?? [];
+      return arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+    };
+    let lowDay: { name: string; avg: number } | null = null;
+    for (const d of program.days) {
+      const avg = avgFeelOfDay(d.id);
+      if (avg != null && avg <= 2.5 && (!lowDay || avg < lowDay.avg)) {
+        lowDay = { name: d.name, avg };
+      }
+    }
+
+    // Stale = max weight didn't move between the last two cycles.
+    const maxByExCycle = new Map<string, Map<number, number>>();
+    for (const s of sets) {
+      if (s.weight_kg == null) continue;
+      const byCycle = maxByExCycle.get(s.exercise_id) ?? new Map();
+      const cyc = s.workout_log.cycle_number;
+      byCycle.set(cyc, Math.max(byCycle.get(cyc) ?? 0, Number(s.weight_kg)));
+      maxByExCycle.set(s.exercise_id, byCycle);
+    }
+
+    const inProgram = new Set(
+      program.days.flatMap((d) => d.exercises.map((pe) => pe.exercise_id))
+    );
+    const { data: lib } = await supabase
+      .from("exercises")
+      .select("*")
+      .eq("is_global", true);
+    const library = (lib ?? []) as ExerciseRow[];
+
+    const candidates = program.days
+      .flatMap((d) => d.exercises.map((pe) => ({ pe, day: d })))
+      .filter((x) => x.pe.exercise.rep_profile === "pump")
+      .map((x) => {
+        const m = maxByExCycle.get(x.pe.exercise_id);
+        const cur = m?.get(prev);
+        const before = m?.get(prev - 1);
+        const stale = cur != null && before != null && cur <= before;
+        const dayFeel = avgFeelOfDay(x.day.id);
+        return { ...x, stale, dayFeel };
+      })
+      .filter((x) => x.stale)
+      .sort((a, b) => (a.dayFeel ?? 5) - (b.dayFeel ?? 5));
+
+    const suggestions: CycleReviewData["suggestions"] = [];
+    for (const c of candidates) {
+      if (suggestions.length >= 2) break;
+      const alt = library.find(
+        (e) =>
+          !inProgram.has(e.id) &&
+          e.id !== c.pe.exercise_id &&
+          e.movement_pattern === c.pe.exercise.movement_pattern &&
+          e.muscle_group === c.pe.exercise.muscle_group &&
+          e.rep_profile === "pump"
+      );
+      if (!alt) continue;
+      suggestions.push({
+        programExerciseId: c.pe.id,
+        fromName: c.pe.exercise.name,
+        toId: alt.id,
+        toName: alt.name,
+        toEquipment: alt.equipment,
+        reason:
+          c.dayFeel != null && c.dayFeel <= 2.5
+            ? `Flat for two cycles, and ${c.day.name} has been feeling heavy.`
+            : "Same muscle, fresh feel — the weight here hasn't moved in two cycles.",
+      });
+    }
+
+    review = {
+      prevCycle: prev,
+      sessions: prevLogs.length,
+      avgFeel: avgPrevFeel,
+      hardAvg,
+      lowDayName: lowDay?.name ?? null,
+      suggestions,
+    };
+  }
 
   // ------------------------------------------------- friend's latest session
   const friendIds = ((friendRows ?? []) as { friend_id: string }[]).map(
@@ -183,6 +300,13 @@ export default async function DashboardPage() {
           {state.phase.toUpperCase()}
         </MonoNumber>
       </header>
+
+      {/* cycle complete — review, feel check, accessory refresh */}
+      {review && (
+        <section className="mt-6">
+          <CycleReview review={review} newCycle={state.cycle} />
+        </section>
+      )}
 
       {/* what's next */}
       <section className="mt-6">
