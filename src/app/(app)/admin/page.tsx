@@ -13,7 +13,8 @@ export default async function AdminPage() {
       <Eyebrow>ADMIN</Eyebrow>
       <h1 className="mt-1 text-3xl font-light tracking-wide">Invite someone</h1>
       <p className="mt-2 text-sm font-light text-ink-soft">
-        She gets a magic link by email — no password, no public signup.
+        This creates her account — she signs in with a 6-digit code sent to
+        her email. No password, no public signup.
       </p>
       <InviteForm />
     </main>

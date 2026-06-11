@@ -430,13 +430,22 @@ export async function inviteUser(formData: FormData) {
     return { ok: false as const, error: "That doesn't look like an email." };
   }
 
+  // Create the account directly (no invite link — login is by emailed
+  // 6-digit code, so nothing depends on redirect-URL configuration).
   const admin = createAdminClient();
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${siteUrl}/auth/callback`,
-    data: { invited_by: userId },
+  const { error } = await admin.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    user_metadata: { invited_by: userId },
   });
-  if (error) return { ok: false as const, error: error.message };
+  if (error) {
+    return {
+      ok: false as const,
+      error: error.message.toLowerCase().includes("already")
+        ? "She's already invited — she can just sign in."
+        : error.message,
+    };
+  }
   return { ok: true as const };
 }
 

@@ -21,9 +21,18 @@ photos, goals, and a small friends feed for sharing wins.
    - `supabase/migrations/0002_friends.sql`
    - `supabase/seed.sql` (exercise library, the "Lean & Sculpted" 5-day
      template program, 40 quotes)
-2. **Auth**: in Supabase Auth settings, disable public signups (the app is
-   invite-only; login uses magic links via `signInWithOtp` with
-   `shouldCreateUser: false`).
+2. **Auth**: login is by emailed 6-digit code (`signInWithOtp` +
+   `verifyOtp`, with `shouldCreateUser: false` — invite-only). In Supabase:
+   - Authentication → Sign In / Up: disable "Allow new users to sign up".
+   - Authentication → Emails → **Magic Link** template: make sure the code
+     is in the email body by including `{{ .Token }}`, e.g.
+     ```html
+     <h2>Your Sculpt code</h2>
+     <p>Enter this code in the app:</p>
+     <h1>{{ .Token }}</h1>
+     ```
+   No redirect-URL configuration is needed — the code flow never leaves
+   the app.
 3. **Env**: copy `.env.example` → `.env.local` and fill in the keys.
 4. **Make yourself admin** (enables the `/admin` invite screen):
    ```sql
