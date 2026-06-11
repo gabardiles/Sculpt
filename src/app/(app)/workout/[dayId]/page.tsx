@@ -7,7 +7,11 @@ import {
   getWeekClosures,
 } from "@/lib/data";
 import { deriveCycleState } from "@/lib/cycle";
-import { DAY_RATIONALE } from "@/lib/programCopy";
+import {
+  DAY_RATIONALE,
+  SHARE_PROMPTS,
+  SHARE_PROMPT_FALLBACK,
+} from "@/lib/programCopy";
 import { WorkoutClient, type WorkoutExercise } from "@/components/workout/WorkoutClient";
 
 export default async function WorkoutPage({
@@ -78,6 +82,8 @@ export default async function WorkoutPage({
       exercises={exercises}
       alreadyDone={alreadyDone}
       rationale={DAY_RATIONALE[day.name] ?? null}
+      sharePrompt={SHARE_PROMPTS[day.name] ?? SHARE_PROMPT_FALLBACK}
+      userId={user.id}
     />
   );
 }

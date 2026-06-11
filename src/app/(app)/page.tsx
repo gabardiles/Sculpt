@@ -18,6 +18,7 @@ import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { ProgressRing } from "@/components/ui/ProgressRing";
 import { DayList } from "@/components/dashboard/DayList";
 import { CloseWeekButton } from "@/components/dashboard/CloseWeekButton";
+import { dayImage } from "@/lib/editorial";
 import { Sparkline } from "@/components/weight/Sparkline";
 import type { FeedPost } from "@/lib/types";
 
@@ -187,20 +188,31 @@ export default async function DashboardPage() {
       <section className="mt-6">
         {nextDay ? (
           <Link href={`/workout/${nextDay.id}`} className="block">
-            <Card className="hero-gradient p-6 active:scale-[0.99] transition-transform duration-150">
-              <Eyebrow>NEXT UP · DAY {nextDay.day_index}</Eyebrow>
-              <div className="mt-2 flex items-center justify-between gap-3">
-                <h2 className="text-3xl font-light tracking-wide">
-                  {nextDay.name}
-                </h2>
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush-deep text-white">
-                  <ChevronRight size={20} strokeWidth={2} />
-                </span>
+            <Card className="relative h-64 overflow-hidden p-0 active:scale-[0.99] transition-transform duration-150">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={dayImage(nextDay.day_index)}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-6">
+                <Eyebrow className="text-white/75">
+                  NEXT UP · DAY {nextDay.day_index}
+                </Eyebrow>
+                <div className="mt-1 flex items-end justify-between gap-3">
+                  <h2 className="text-4xl font-light leading-tight tracking-wide text-white">
+                    {nextDay.name}
+                  </h2>
+                  <span className="mb-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush text-ink">
+                    <ChevronRight size={20} strokeWidth={2} />
+                  </span>
+                </div>
+                <MonoNumber className="mt-2 block text-xs text-white/80">
+                  {nextDay.exercises.length} exercises ·{" "}
+                  {REP_TARGETS.strength[state.phase]} reps · 3 sets
+                </MonoNumber>
               </div>
-              <MonoNumber className="mt-3 block text-xs text-ink-soft">
-                {nextDay.exercises.length} exercises ·{" "}
-                {REP_TARGETS.strength[state.phase]} reps · 3 sets
-              </MonoNumber>
             </Card>
           </Link>
         ) : (

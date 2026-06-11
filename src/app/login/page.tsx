@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { HERO_IMAGE } from "@/lib/editorial";
 import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow } from "@/components/ui/MonoNumber";
@@ -61,11 +62,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-dvh hero-gradient flex flex-col items-center justify-center px-6">
-      <div className="w-full max-w-sm animate-fade-up">
+    <main className="relative min-h-dvh flex flex-col items-center justify-center px-6 overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={HERO_IMAGE}
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+      <div className="absolute inset-0 bg-gradient-to-b from-bg/70 via-bg/85 to-bg" />
+      <div className="relative w-full max-w-sm animate-fade-up">
         <div className="text-center mb-10">
           <Eyebrow>TRAINING TRACKER</Eyebrow>
-          <h1 className="mt-2 text-4xl font-light tracking-widest uppercase">
+          <h1 className="mt-2 text-5xl font-light tracking-widest uppercase">
             Sculpt
           </h1>
         </div>

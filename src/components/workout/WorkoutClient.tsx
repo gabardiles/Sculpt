@@ -3,13 +3,15 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Check, PlayCircle, X } from "lucide-react";
+import { ArrowLeft, Camera, Check, PlayCircle, X } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { Sheet } from "@/components/ui/Sheet";
 import { RestTimer } from "@/components/workout/RestTimer";
-import { completeWorkout } from "@/lib/actions";
+import { completeWorkout, createFeedPost } from "@/lib/actions";
+import { createClient } from "@/lib/supabase/client";
+import { dayImage } from "@/lib/editorial";
 import { REP_DEFAULT, REP_TARGETS, REST_SECONDS } from "@/lib/cycle";
 import type { Phase, RepProfile } from "@/lib/types";
 import { formatKg } from "@/lib/format";
@@ -49,6 +51,8 @@ export function WorkoutClient({
   exercises,
   alreadyDone,
   rationale,
+  sharePrompt,
+  userId,
 }: {
   day: { id: string; name: string; index: number };
   phase: Phase;
@@ -57,6 +61,8 @@ export function WorkoutClient({
   exercises: WorkoutExercise[];
   alreadyDone: boolean;
   rationale: string | null;
+  sharePrompt: string;
+  userId: string;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState<Record<string, EntryState>>(() =>
@@ -85,6 +91,9 @@ export function WorkoutClient({
   const [feel, setFeel] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [celebrating, setCelebrating] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const [shared, setShared] = useState(false);
+  const shareFileRef = useRef<HTMLInputElement>(null);
   const [restKey, setRestKey] = useState(0);
   const [restUntil, setRestUntil] = useState<number | null>(null);
 
@@ -153,10 +162,33 @@ export function WorkoutClient({
     });
     if (res.ok) {
       setFeelOpen(false);
+      // The celebration doubles as the share moment — no auto-redirect.
       setCelebrating(true);
-      setTimeout(() => router.replace("/"), 1100);
     } else {
       setSaving(false);
+    }
+  }
+
+  async function shareSelfie(file: File) {
+    setSharing(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${userId}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage
+        .from("feed-photos")
+        .upload(path, file, { contentType: file.type });
+      if (!error) {
+        await createFeedPost({
+          type: "photo",
+          body: `${day.name} — done ✓`,
+          storagePath: path,
+        });
+        setShared(true);
+        setTimeout(() => router.replace("/"), 1200);
+      }
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -176,10 +208,33 @@ export function WorkoutClient({
         <div className="w-12" />
       </header>
 
-      <div className="mt-2">
-        <Eyebrow>DAY {day.index}</Eyebrow>
-        <h1 className="mt-1 text-3xl font-light tracking-wide">{day.name}</h1>
-        <MonoNumber className="mt-2 block text-xs text-ink-soft">
+      {/* editorial banner — big number, attitude */}
+      <div className="relative mt-2 h-52 overflow-hidden rounded-[22px]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={dayImage(day.index)}
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/25 to-ink/10" />
+        <MonoNumber
+          aria-hidden
+          className="absolute -top-3 right-3 text-[96px] font-light leading-none text-white/25"
+        >
+          {day.index}
+        </MonoNumber>
+        <div className="absolute inset-x-0 bottom-0 p-5">
+          <Eyebrow className="text-white/75">
+            DAY {day.index} · {phase.toUpperCase()} WEEK
+          </Eyebrow>
+          <h1 className="mt-1 text-4xl font-light tracking-wide text-white">
+            {day.name}
+          </h1>
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <MonoNumber className="block text-xs text-ink-soft">
           {REP_TARGETS.strength[phase]} reps · 3 sets · {doneCount}/
           {exercises.length} done
         </MonoNumber>
@@ -411,13 +466,10 @@ export function WorkoutClient({
       {/* finish bar */}
       {doneCount > 0 && (
         <div className="fixed inset-x-0 bottom-24 z-30 px-5">
-          <div className="mx-auto max-w-md">
+          {/* frosted wrapper: heavy white + blur so nothing bleeds through */}
+          <div className="mx-auto max-w-md rounded-full bg-white/85 backdrop-blur-2xl shadow-lg shadow-ink/10">
             <PillButton
-              className={cn(
-                "w-full shadow-lg shadow-ink/10",
-                // opaque even in ghost state so content can't bleed through
-                !allDone && "bg-bg/95 backdrop-blur-xl"
-              )}
+              className="w-full"
               variant={allDone ? "primary" : "ghost"}
               onClick={() => setFeelOpen(true)}
             >
@@ -513,10 +565,20 @@ export function WorkoutClient({
         </div>
       </Sheet>
 
-      {/* sage completion overlay — the dopamine moment */}
+      {/* sage completion — the dopamine moment, then the share moment */}
       {celebrating && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-bg/90 backdrop-blur-md">
-          <div className="flex flex-col items-center animate-fade-up">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-bg/95 backdrop-blur-md px-6">
+          <input
+            ref={shareFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) shareSelfie(f);
+            }}
+          />
+          <div className="flex w-full max-w-sm flex-col items-center animate-fade-up">
             <span className="flex h-24 w-24 items-center justify-center rounded-full bg-sage">
               <svg width="44" height="44" viewBox="0 0 24 24" fill="none">
                 <path
@@ -529,9 +591,34 @@ export function WorkoutClient({
                 />
               </svg>
             </span>
-            <p className="mt-5 font-light text-lg tracking-wide">
+            <p className="mt-5 text-2xl font-light tracking-wide">
               {day.name} — done
             </p>
+            {shared ? (
+              <p className="mt-4 text-sm font-medium text-sage-deep">
+                Shared with your friends ✓
+              </p>
+            ) : (
+              <>
+                <p className="mt-3 text-center text-sm font-light leading-relaxed text-ink-soft">
+                  {sharePrompt}
+                </p>
+                <PillButton
+                  className="mt-6 w-full"
+                  disabled={sharing}
+                  onClick={() => shareFileRef.current?.click()}
+                >
+                  <Camera size={17} strokeWidth={1.6} />
+                  {sharing ? "Posting…" : "Snap it for the feed"}
+                </PillButton>
+                <button
+                  onClick={() => router.replace("/")}
+                  className="mt-3 min-h-12 text-sm font-light text-ink-soft underline-offset-4 active:underline"
+                >
+                  Not today
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

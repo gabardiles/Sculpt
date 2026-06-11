@@ -3,6 +3,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { MonoNumber } from "@/components/ui/MonoNumber";
 import { formatDay } from "@/lib/format";
+import { dayImage } from "@/lib/editorial";
 import { cn } from "@/lib/cn";
 
 export interface DayRowItem {
@@ -31,20 +32,17 @@ export function DayList({ days }: { days: DayRowItem[] }) {
                 d.isNext && "ring-2 ring-blush-deep/60"
               )}
             >
-              <span
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border",
-                  d.done
-                    ? "border-sage bg-sage text-white"
-                    : "border-ink/15 bg-white/50"
-                )}
-              >
-                {d.done ? (
-                  <Check size={15} strokeWidth={2.2} />
-                ) : (
-                  <MonoNumber className="text-xs text-ink-soft">
-                    {d.index}
-                  </MonoNumber>
+              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={dayImage(d.index)}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+                {d.done && (
+                  <span className="absolute inset-0 flex items-center justify-center bg-sage/75 text-white">
+                    <Check size={18} strokeWidth={2.4} />
+                  </span>
                 )}
               </span>
               <span className="min-w-0 flex-1">

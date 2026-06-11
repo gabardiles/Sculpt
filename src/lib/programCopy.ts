@@ -4,6 +4,23 @@
  * name so it follows template-derived programs.
  */
 
+/** Post-workout share nudges — gym selfies are the love language. */
+export const SHARE_PROMPTS: Record<string, string> = {
+  "Glutes & Hamstrings":
+    "Glutes are awake. Snap one for the feed — your friends want proof.",
+  "Upper Body Lean":
+    "That upper-body pump won't last forever. The mirror is right there.",
+  "Glutes & Quads":
+    "Leg day survived. Proof or it didn't happen.",
+  "Core & Back":
+    "Back day done — flex it. Snap the back, share the win.",
+  "Booty Volume":
+    "Pump day complete. This is exactly what gym selfies were invented for.",
+};
+
+export const SHARE_PROMPT_FALLBACK =
+  "Done. Show your friends what showing up looks like.";
+
 export const DAY_RATIONALE: Record<string, string> = {
   "Glutes & Hamstrings":
     "Hinge day. The RDL loads your glutes and hamstrings at long muscle " +
