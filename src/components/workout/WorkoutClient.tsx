@@ -572,7 +572,7 @@ export function WorkoutClient({
                 className={cn(
                   "flex h-12 w-12 items-center justify-center rounded-full border font-mono text-sm transition-all duration-150",
                   feel === n
-                    ? "scale-110 border-blush-deep bg-blush text-ink"
+                    ? "scale-110 border-blush-deep bg-blush text-on-accent"
                     : "border-ink/15 bg-surface-soft text-ink-soft"
                 )}
               >

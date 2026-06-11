@@ -13,6 +13,8 @@
   --color-surface-strong: rgba(255, 255, 255, 0.88);
   --color-surface-soft: rgba(255, 255, 255, 0.45);
   --color-edge: rgba(255, 255, 255, 0.65);
+  /* text color on accent-filled (blush/orange) elements */
+  --color-on-accent: #2b2422;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -64,32 +66,47 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Sculpt — Spartan. Warm charcoal, bone text, bronze accent.
+/* Sculpt — Spartan. Deep warm black, vivid orange, glow gradients.
    Pure variable swap: zero JS, zero extra requests, zero runtime cost. */
 [data-theme="spartan"] {
-  --color-bg: #16130f;
-  --color-blush: #8a6a3c;
-  --color-blush-deep: #c89a5e;
-  --color-ink: #ede6e0;
-  --color-ink-soft: #a3978a;
+  --color-bg: #11100d;
+  --color-blush: #f08226;
+  --color-blush-deep: #fb9d3f;
+  --color-ink: #f2ece4;
+  --color-ink-soft: #a89c8e;
   --color-sage: #5f7a52;
   --color-sage-deep: #a9c79a;
-  --color-glass: rgba(255, 255, 255, 0.06);
+  --color-on-accent: #1c1409;
+  --color-glass: rgba(255, 255, 255, 0.055);
   --color-surface: rgba(255, 255, 255, 0.08);
-  --color-surface-strong: rgba(28, 24, 19, 0.92);
+  --color-surface-strong: rgba(26, 23, 19, 0.92);
   --color-surface-soft: rgba(255, 255, 255, 0.05);
-  --color-edge: rgba(255, 255, 255, 0.12);
+  --color-edge: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="spartan"] .glass,
 [data-theme="spartan"] .glass-done {
-  border-color: rgba(255, 255, 255, 0.1);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="spartan"] .glass-done {
   background: rgba(95, 122, 82, 0.22);
   border-color: rgba(95, 122, 82, 0.35);
+}
+
+/* Warm glow at the top of every screen — the reference look. */
+.app-shell {
+  background-color: var(--color-bg);
+}
+
+[data-theme="spartan"] .app-shell {
+  background-image: radial-gradient(
+    90% 38% at 50% 0%,
+    rgba(240, 130, 38, 0.14),
+    transparent 65%
+  );
+  background-repeat: no-repeat;
 }
 
 /* Spartan imagery is pending — hide the borrowed editorial photos for now.
@@ -100,12 +117,14 @@ body {
 }
 
 [data-theme="spartan"] .hero-gradient {
-  background: linear-gradient(
-    160deg,
-    rgba(138, 106, 60, 0.45) 0%,
-    rgba(138, 106, 60, 0.12) 45%,
-    rgba(22, 19, 15, 0) 75%
-  );
+  background:
+    radial-gradient(
+      120% 90% at 85% 0%,
+      rgba(240, 130, 38, 0.35) 0%,
+      rgba(240, 130, 38, 0.08) 45%,
+      transparent 70%
+    ),
+    linear-gradient(160deg, rgba(240, 130, 38, 0.15), transparent 60%);
 }
 
 @layer components {

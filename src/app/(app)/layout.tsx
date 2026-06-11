@@ -16,7 +16,7 @@ export default async function AppLayout({
       : "sculpt";
 
   return (
-    <div data-theme={theme} className="min-h-dvh bg-bg text-ink">
+    <div data-theme={theme} className="app-shell min-h-dvh text-ink">
       <ThemeSync theme={theme} />
       <div className="mx-auto max-w-md px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-32">
         {children}

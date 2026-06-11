@@ -152,7 +152,7 @@ export function ProgramClient({
             onClick={() => setEditing(!editing)}
             className={cn(
               "flex h-12 w-12 items-center justify-center rounded-full transition-colors",
-              editing ? "bg-blush text-ink" : "text-ink-soft active:bg-ink/5"
+              editing ? "bg-blush text-on-accent" : "text-ink-soft active:bg-ink/5"
             )}
           >
             {editing ? <Check size={18} strokeWidth={1.8} /> : <Pencil size={17} strokeWidth={1.5} />}

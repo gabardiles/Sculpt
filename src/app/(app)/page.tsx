@@ -328,7 +328,7 @@ export default async function DashboardPage() {
                   <h2 className="text-4xl font-light leading-tight tracking-wide text-white">
                     {nextDay.name}
                   </h2>
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush text-ink">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush text-on-accent">
                     <ChevronRight size={20} strokeWidth={2} />
                   </span>
                 </div>

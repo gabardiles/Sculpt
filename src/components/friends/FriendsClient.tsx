@@ -169,7 +169,7 @@ export function FriendsClient({
           type="submit"
           aria-label="Send message"
           disabled={posting || !message.trim()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blush text-ink disabled:opacity-40"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blush text-on-accent disabled:opacity-40"
         >
           <Send size={17} strokeWidth={1.5} />
         </button>
