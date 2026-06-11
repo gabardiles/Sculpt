@@ -16,16 +16,19 @@ photos, goals, and a small friends feed for sharing wins.
 
 ## Setup
 
-1. **Supabase**: create a project, then run, in order:
-   - `supabase/migrations/0001_schema.sql`
-   - `supabase/migrations/0002_friends.sql`
-   - `supabase/migrations/0004_rep_profiles.sql`
-   - `supabase/seed.sql` (exercise library, the "Lean & Sculpted" 5-day
-     template program, 40 quotes — run once)
-   - `supabase/migrations/0003_instruction_videos.sql` (after seed)
+1. **Supabase**: create a project, then in the SQL editor run:
+   - `supabase/setup_all.sql` — one idempotent script: schema, RLS, seed
+     data, instruction videos. Safe to re-run on any database state.
+   - `supabase/storage_policies.sql` — as a **separate** query. If it
+     errors with "must be owner of table objects", create the same
+     policies via Dashboard → Storage → Policies (expressions are in the
+     file).
 
-   Already seeded with the v1 files? Just run `0004` — it patches existing
-   data in place.
+   The `supabase/migrations/` folder holds the same changes as individual
+   migrations for CLI-based workflows (`supabase db push`); the SQL editor
+   wraps each script in one transaction, so the storage-policy section can
+   roll back an entire migration on hosted projects — hence the split
+   files above.
 2. **Auth**: login is by emailed 6-digit code (`signInWithOtp` +
    `verifyOtp`, with `shouldCreateUser: false` — invite-only). In Supabase:
    - Authentication → Sign In / Up: disable "Allow new users to sign up".
