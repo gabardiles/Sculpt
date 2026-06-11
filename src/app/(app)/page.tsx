@@ -8,6 +8,7 @@ import {
   getCycleLogs,
   getQuoteOfTheDay,
   getGoals,
+  getWeekClosures,
 } from "@/lib/data";
 import { deriveCycleState, REP_TARGETS, SETS_PER_EXERCISE } from "@/lib/cycle";
 import { formatDay, formatKg, greeting } from "@/lib/format";
@@ -15,7 +16,8 @@ import { computeGoalProgress, goalLabel } from "@/lib/goals";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { ProgressRing } from "@/components/ui/ProgressRing";
-import { WeekStrip } from "@/components/dashboard/WeekStrip";
+import { DayList } from "@/components/dashboard/DayList";
+import { CloseWeekButton } from "@/components/dashboard/CloseWeekButton";
 import { Sparkline } from "@/components/weight/Sparkline";
 import type { FeedPost } from "@/lib/types";
 
@@ -29,11 +31,12 @@ export default async function DashboardPage() {
   if (!profile?.name || !program) redirect("/onboarding");
 
   const dayIds = program.days.map((d) => d.id);
-  const [logs, quote, goals, { data: setRows }, { data: friendRows }] =
+  const [logs, quote, goals, closures, { data: setRows }, { data: friendRows }] =
     await Promise.all([
       getCycleLogs(supabase, user.id, dayIds),
       getQuoteOfTheDay(),
       getGoals(supabase, user.id),
+      getWeekClosures(supabase, user.id),
       supabase
         .from("set_logs")
         .select(
@@ -43,8 +46,16 @@ export default async function DashboardPage() {
       supabase.from("friends").select("friend_id").eq("user_id", user.id),
     ]);
 
-  const state = deriveCycleState(logs, dayIds, program.cycle_floor);
+  const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
   const nextDay = program.days.find((d) => d.id === state.nextDayId);
+
+  // Completion date per day in the current week, for the day list.
+  const doneAtByDay = new Map<string, string>();
+  for (const l of logs) {
+    if (l.cycle_number === state.cycle && l.week_phase === state.phase) {
+      doneAtByDay.set(l.program_day_id, l.completed_at);
+    }
+  }
 
   // ------------------------------------------------ this week + volume graph
   type SetRow = {
@@ -166,7 +177,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-light tracking-wide">
           {greeting(profile.name)}
         </h1>
-        <MonoNumber className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+        <MonoNumber className="mt-1 block text-xs uppercase tracking-[0.14em] text-ink-soft">
           CYCLE {state.cycle} · WEEK {state.weekIndex} ·{" "}
           {state.phase.toUpperCase()}
         </MonoNumber>
@@ -200,16 +211,25 @@ export default async function DashboardPage() {
         )}
       </section>
 
-      {/* week strip — tap any day to train it, in any order */}
+      {/* the week — thin rows with names, tappable in any order */}
       <section className="mt-5">
-        <WeekStrip
+        <DayList
           days={program.days.map((d) => ({
             id: d.id,
             index: d.day_index,
+            name: d.name,
             done: state.doneDayIds.has(d.id),
+            doneAt: doneAtByDay.get(d.id) ?? null,
             isNext: d.id === state.nextDayId,
           }))}
         />
+        {state.weekClosable && (
+          <CloseWeekButton
+            cycle={state.cycle}
+            phase={state.phase}
+            doneCount={state.doneDayIds.size}
+          />
+        )}
       </section>
 
       {/* this week's numbers */}
@@ -244,7 +264,7 @@ export default async function DashboardPage() {
             {volumeSpark.length >= 2 && (
               <div className="mt-3 flex flex-col items-center">
                 <Sparkline values={volumeSpark} width={260} height={36} />
-                <MonoNumber className="mt-1 text-[10px] uppercase tracking-wider text-ink-soft/80">
+                <MonoNumber className="mt-1 text-[11px] uppercase tracking-wider text-ink-soft/80">
                   volume · last {volumeSpark.length} sessions
                 </MonoNumber>
               </div>
@@ -273,7 +293,7 @@ export default async function DashboardPage() {
                     {friendPost.body}
                   </span>
                 </span>
-                <MonoNumber className="text-[10px] uppercase tracking-wider text-ink-soft">
+                <MonoNumber className="text-[11px] uppercase tracking-wider text-ink-soft">
                   {formatDay(friendPost.created_at)}
                   {typeof friendPost.metadata?.phase === "string" && (
                     <> · {friendPost.metadata.phase as string}</>
@@ -295,7 +315,7 @@ export default async function DashboardPage() {
               {goalRows.map((g) => (
                 <Link key={g.id} href="/goals" className="flex flex-col items-center gap-1.5">
                   <ProgressRing progress={g.progress} done={g.hit}>
-                    <MonoNumber className="text-[10px] text-ink-soft">
+                    <MonoNumber className="text-[11px] text-ink-soft">
                       {Math.round(g.progress * 100)}%
                     </MonoNumber>
                   </ProgressRing>

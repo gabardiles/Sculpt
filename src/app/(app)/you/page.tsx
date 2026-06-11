@@ -1,8 +1,10 @@
 import Link from "next/link";
 import {
+  BookOpen,
   Camera,
   ChevronRight,
   LogOut,
+  Smartphone,
   Target,
   TrendingUp,
   UserPlus,
@@ -64,6 +66,18 @@ export default async function YouPage() {
         ? `${activeGoals} active`
         : "Pick one thing worth chasing",
     },
+    {
+      href: "/you/how-it-works",
+      icon: BookOpen,
+      title: "How Sculpt works",
+      detail: "The cycle, the 3/5 rule, why these exercises",
+    },
+    {
+      href: "/you/install",
+      icon: Smartphone,
+      title: "Install on your phone",
+      detail: "Home-screen app in three taps",
+    },
   ];
 
   return (
@@ -72,7 +86,7 @@ export default async function YouPage() {
       <h1 className="mt-1 text-3xl font-light tracking-wide">
         {profile?.name ?? "Your space"}
       </h1>
-      <MonoNumber className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+      <MonoNumber className="mt-1 block text-xs uppercase tracking-[0.14em] text-ink-soft">
         FRIEND CODE · {profile?.friend_code}
       </MonoNumber>
 

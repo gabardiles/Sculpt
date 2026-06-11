@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
-import { requireUser, getActiveProgram, getCycleLogs } from "@/lib/data";
+import {
+  requireUser,
+  getActiveProgram,
+  getCycleLogs,
+  getWeekClosures,
+} from "@/lib/data";
 import { deriveCycleState, summarizeCycles, PHASES } from "@/lib/cycle";
 import { ProgramClient } from "@/components/program/ProgramClient";
 import type { Exercise, Phase } from "@/lib/types";
@@ -10,8 +15,28 @@ export default async function ProgramPage() {
   if (!program) redirect("/onboarding");
 
   const dayIds = program.days.map((d) => d.id);
-  const logs = await getCycleLogs(supabase, user.id, dayIds);
-  const state = deriveCycleState(logs, dayIds, program.cycle_floor);
+  const [logs, closures] = await Promise.all([
+    getCycleLogs(supabase, user.id, dayIds),
+    getWeekClosures(supabase, user.id),
+  ]);
+  const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
+
+  // Week status for the current cycle: star = all 5, check = closed at 3+.
+  const weekStatus: Record<Phase, "star" | "check" | "open"> = {
+    light: "open",
+    medium: "open",
+    hard: "open",
+  };
+  for (const phase of PHASES) {
+    const count = logs.filter(
+      (l) => l.cycle_number === state.cycle && l.week_phase === phase
+    ).length;
+    const closed = closures.some(
+      (c) => c.cycle_number === state.cycle && c.week_phase === phase
+    );
+    weekStatus[phase] =
+      count >= dayIds.length ? "star" : closed ? "check" : "open";
+  }
   const summaries = summarizeCycles(logs).filter((s) => s.cycle !== state.cycle);
 
   // Completion date per (phase, day) in the current cycle — for sage stamps.
@@ -61,6 +86,7 @@ export default async function ProgramPage() {
       summaries={summaries}
       library={(library ?? []) as Exercise[]}
       hardFeelsLow={hardFeelsLow}
+      weekStatus={weekStatus}
     />
   );
 }

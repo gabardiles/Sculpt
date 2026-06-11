@@ -1,4 +1,9 @@
-import { requireUser, getActiveProgram, getCycleLogs } from "@/lib/data";
+import {
+  requireUser,
+  getActiveProgram,
+  getCycleLogs,
+  getWeekClosures,
+} from "@/lib/data";
 import { deriveCycleState } from "@/lib/cycle";
 import { Eyebrow } from "@/components/ui/MonoNumber";
 import { PhotosClient, type PhotoItem } from "@/components/photos/PhotosClient";
@@ -9,8 +14,11 @@ export default async function PhotosPage() {
 
   const program = await getActiveProgram(supabase, user.id);
   const dayIds = program?.days.map((d) => d.id) ?? [];
-  const logs = program ? await getCycleLogs(supabase, user.id, dayIds) : [];
-  const state = deriveCycleState(logs, dayIds, program?.cycle_floor ?? 1);
+  const [logs, closures] = await Promise.all([
+    program ? getCycleLogs(supabase, user.id, dayIds) : Promise.resolve([]),
+    getWeekClosures(supabase, user.id),
+  ]);
+  const state = deriveCycleState(logs, dayIds, program?.cycle_floor ?? 1, closures);
 
   const { data } = await supabase
     .from("progress_photos")

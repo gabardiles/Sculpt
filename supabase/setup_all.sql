@@ -175,6 +175,16 @@ create table if not exists public.feed_cheers (
   unique (post_id, user_id)
 );
 
+-- A week counts as complete at 3 of 5 sessions; closing early is explicit.
+create table if not exists public.week_closures (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  cycle_number int not null,
+  week_phase text not null check (week_phase in ('light','medium','hard')),
+  created_at timestamptz not null default now(),
+  unique (user_id, cycle_number, week_phase)
+);
+
 -- --------------------------------------------------------------- functions
 create or replace function public.add_friend(code text)
 returns jsonb
@@ -220,6 +230,11 @@ alter table public.quotes enable row level security;
 alter table public.friends enable row level security;
 alter table public.feed_posts enable row level security;
 alter table public.feed_cheers enable row level security;
+alter table public.week_closures enable row level security;
+
+drop policy if exists "week_closures own" on public.week_closures;
+create policy "week_closures own" on public.week_closures
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists "profiles own read" on public.profiles;
 create policy "profiles own read" on public.profiles

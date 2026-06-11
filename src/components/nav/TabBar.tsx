@@ -42,7 +42,7 @@ export function TabBar() {
                 <Icon size={20} strokeWidth={active ? 1.8 : 1.4} />
                 <span
                   className={cn(
-                    "text-[10px] tracking-wide",
+                    "text-[11px] tracking-wide",
                     active ? "font-medium" : "font-light"
                   )}
                 >

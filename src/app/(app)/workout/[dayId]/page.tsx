@@ -4,8 +4,10 @@ import {
   getActiveProgram,
   getCycleLogs,
   getSetHistory,
+  getWeekClosures,
 } from "@/lib/data";
 import { deriveCycleState } from "@/lib/cycle";
+import { DAY_RATIONALE } from "@/lib/programCopy";
 import { WorkoutClient, type WorkoutExercise } from "@/components/workout/WorkoutClient";
 
 export default async function WorkoutPage({
@@ -23,11 +25,12 @@ export default async function WorkoutPage({
 
   const dayIds = program.days.map((d) => d.id);
   const exerciseIds = day.exercises.map((pe) => pe.exercise_id);
-  const [logs, history] = await Promise.all([
+  const [logs, history, closures] = await Promise.all([
     getCycleLogs(supabase, user.id, dayIds),
     getSetHistory(supabase, user.id, exerciseIds),
+    getWeekClosures(supabase, user.id),
   ]);
-  const state = deriveCycleState(logs, dayIds, program.cycle_floor);
+  const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
 
   // "LAST: 40 kg" — most recent weight in the SAME phase (her hard-week
   // weight shouldn't show during light week). Trend arrow compares against
@@ -74,6 +77,7 @@ export default async function WorkoutPage({
       weekIndex={state.weekIndex}
       exercises={exercises}
       alreadyDone={alreadyDone}
+      rationale={DAY_RATIONALE[day.name] ?? null}
     />
   );
 }

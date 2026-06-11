@@ -9,6 +9,7 @@ import {
   Plus,
   Repeat,
   Search,
+  Star,
   Trash2,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -38,6 +39,7 @@ export function ProgramClient({
   summaries,
   library,
   hardFeelsLow,
+  weekStatus,
 }: {
   program: { id: string; name: string };
   days: DayRow[];
@@ -48,6 +50,7 @@ export function ProgramClient({
   summaries: CycleSummary[];
   library: Exercise[];
   hardFeelsLow: boolean;
+  weekStatus: Record<Phase, "star" | "check" | "open">;
 }) {
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -130,7 +133,7 @@ export function ProgramClient({
           <h1 className="mt-1 text-3xl font-light tracking-wide">
             {program.name}
           </h1>
-          <MonoNumber className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+          <MonoNumber className="mt-1 block text-xs uppercase tracking-[0.14em] text-ink-soft">
             CYCLE {cycle} · {currentPhase.toUpperCase()} WEEK
           </MonoNumber>
         </div>
@@ -172,17 +175,33 @@ export function ProgramClient({
           return (
             <section key={phase}>
               <div className="flex items-baseline justify-between">
-                <h2 className="font-light tracking-wide">
+                <h2 className="flex items-center gap-1.5 font-light tracking-wide">
                   <MonoNumber
                     className={cn(
-                      "text-[11px] uppercase tracking-[0.14em]",
+                      "text-xs uppercase tracking-[0.14em]",
                       isCurrent ? "text-blush-deep" : "text-ink-soft"
                     )}
                   >
                     WEEK {wi + 1} · {phase.toUpperCase()}
                   </MonoNumber>
+                  {weekStatus[phase] === "star" && (
+                    <Star
+                      size={14}
+                      strokeWidth={1.8}
+                      className="fill-blush-deep text-blush-deep"
+                      aria-label="All five sessions"
+                    />
+                  )}
+                  {weekStatus[phase] === "check" && (
+                    <Check
+                      size={14}
+                      strokeWidth={2.2}
+                      className="text-sage-deep"
+                      aria-label="Week completed"
+                    />
+                  )}
                 </h2>
-                <MonoNumber className="text-[11px] text-ink-soft">
+                <MonoNumber className="text-xs text-ink-soft">
                   {REP_TARGETS.strength[phase]} reps
                 </MonoNumber>
               </div>
@@ -223,7 +242,7 @@ export function ProgramClient({
                               <span className="flex-1 truncate text-sm font-light">
                                 {row.exercise.name}
                               </span>
-                              <MonoNumber className="text-[10px] uppercase text-ink-soft/70">
+                              <MonoNumber className="text-[11px] uppercase text-ink-soft/70">
                                 {row.exercise.equipment}
                               </MonoNumber>
                               {editing && (
@@ -310,7 +329,7 @@ export function ProgramClient({
         title={`Swap ${swapFor?.exercise.name ?? ""}`}
       >
         <div className="pb-2">
-          <MonoNumber className="text-[10px] uppercase tracking-wider text-ink-soft">
+          <MonoNumber className="text-[11px] uppercase tracking-wider text-ink-soft">
             {swapFor?.exercise.movement_pattern} · {swapFor?.exercise.muscle_group}
           </MonoNumber>
           {swapOptions.sameTier.length + swapOptions.otherTier.length === 0 ? (
@@ -328,7 +347,7 @@ export function ProgramClient({
                       className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left active:scale-[0.99] transition-transform"
                     >
                       <span className="text-sm">{e.name}</span>
-                      <MonoNumber className="text-[10px] uppercase text-ink-soft">
+                      <MonoNumber className="text-[11px] uppercase text-ink-soft">
                         {e.equipment}
                       </MonoNumber>
                     </button>
@@ -337,7 +356,7 @@ export function ProgramClient({
               </ul>
               {swapOptions.otherTier.length > 0 && (
                 <>
-                  <MonoNumber className="mt-4 block text-[10px] uppercase tracking-wider text-ink-soft/80">
+                  <MonoNumber className="mt-4 block text-[11px] uppercase tracking-wider text-ink-soft/80">
                     Different intensity
                   </MonoNumber>
                   <ul className="mt-2 flex flex-col gap-2">
@@ -349,7 +368,7 @@ export function ProgramClient({
                           className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left opacity-80 active:scale-[0.99] transition-transform"
                         >
                           <span className="text-sm">{e.name}</span>
-                          <MonoNumber className="text-[10px] uppercase text-ink-soft">
+                          <MonoNumber className="text-[11px] uppercase text-ink-soft">
                             {e.rep_profile} · {e.equipment}
                           </MonoNumber>
                         </button>
@@ -391,7 +410,7 @@ export function ProgramClient({
                   className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left active:scale-[0.99] transition-transform"
                 >
                   <span className="text-sm">{e.name}</span>
-                  <MonoNumber className="text-[10px] uppercase text-ink-soft">
+                  <MonoNumber className="text-[11px] uppercase text-ink-soft">
                     {e.movement_pattern} · {e.equipment}
                   </MonoNumber>
                 </button>

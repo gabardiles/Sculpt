@@ -280,6 +280,19 @@ export async function toggleCheer(postId: string, on: boolean) {
 
 // ---------------------------------------------------------------- program
 
+/** Close the current week from 3/5 sessions — checkbox week, on to the next. */
+export async function closeWeek(cycle: number, phase: Phase) {
+  const { supabase, userId } = await requireUserId();
+  await supabase
+    .from("week_closures")
+    .upsert(
+      { user_id: userId, cycle_number: cycle, week_phase: phase },
+      { onConflict: "user_id,cycle_number,week_phase" }
+    );
+  revalidatePath("/");
+  revalidatePath("/program");
+}
+
 export async function resetCycle(programId: string, nextCycle: number) {
   const { supabase, userId } = await requireUserId();
   await supabase

@@ -298,11 +298,11 @@ function FeedCard({ item }: { item: FeedItem }) {
             {item.type === "workout" ? (dayName ?? item.body) : item.body}
           </span>
           {phase && (
-            <MonoNumber className="ml-1.5 text-[10px] uppercase text-ink-soft">
+            <MonoNumber className="ml-1.5 text-[11px] uppercase text-ink-soft">
               {phase}
             </MonoNumber>
           )}
-          <MonoNumber className="ml-1.5 text-[10px] text-ink-soft">
+          <MonoNumber className="ml-1.5 text-[11px] text-ink-soft">
             {formatDay(item.createdAt)}
           </MonoNumber>
         </span>
@@ -335,7 +335,7 @@ function FeedCard({ item }: { item: FeedItem }) {
     <Card className="p-4">
       <div className="flex items-baseline justify-between">
         <span className="text-sm font-medium">{item.authorName}</span>
-        <MonoNumber className="text-[10px] text-ink-soft">
+        <MonoNumber className="text-[11px] text-ink-soft">
           {formatDay(item.createdAt)}
         </MonoNumber>
       </div>

@@ -41,7 +41,7 @@ export function RestTimer({
       <MonoNumber className="text-sm">
         {m}:{String(s).padStart(2, "0")}
       </MonoNumber>
-      <span className="text-[10px] uppercase tracking-wider">rest</span>
+      <span className="text-[11px] uppercase tracking-wider">rest</span>
     </button>
   );
 }

@@ -25,7 +25,7 @@ export default function StyleguidePage() {
           {TOKENS.map((t) => (
             <div key={t.name}>
               <div className={`h-14 rounded-2xl ${t.cls} border-ink/10`} />
-              <MonoNumber className="mt-1 block text-[10px] text-ink-soft">
+              <MonoNumber className="mt-1 block text-[11px] text-ink-soft">
                 {t.name}
               </MonoNumber>
             </div>
@@ -79,10 +79,10 @@ export default function StyleguidePage() {
         <Eyebrow>PROGRESS</Eyebrow>
         <div className="mt-2 flex items-center gap-6">
           <ProgressRing progress={0.66}>
-            <MonoNumber className="text-[10px] text-ink-soft">66%</MonoNumber>
+            <MonoNumber className="text-[11px] text-ink-soft">66%</MonoNumber>
           </ProgressRing>
           <ProgressRing progress={1} done>
-            <MonoNumber className="text-[10px] text-sage-deep">✓</MonoNumber>
+            <MonoNumber className="text-[11px] text-sage-deep">✓</MonoNumber>
           </ProgressRing>
           <div className="flex flex-1 items-center gap-2">
             {[1, 1, 1, 0, 0].map((done, i) => (

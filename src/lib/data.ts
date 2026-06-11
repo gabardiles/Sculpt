@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   Exercise,
   Goal,
+  Phase,
   Profile,
   Program,
   ProgramDay,
@@ -116,6 +117,17 @@ export async function getQuoteOfTheDay(): Promise<Quote | null> {
   } catch {
     return null;
   }
+}
+
+export async function getWeekClosures(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string
+): Promise<{ cycle_number: number; week_phase: Phase }[]> {
+  const { data } = await supabase
+    .from("week_closures")
+    .select("cycle_number, week_phase")
+    .eq("user_id", userId);
+  return (data ?? []) as { cycle_number: number; week_phase: Phase }[];
 }
 
 export async function getGoals(

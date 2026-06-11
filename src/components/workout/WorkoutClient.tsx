@@ -48,6 +48,7 @@ export function WorkoutClient({
   weekIndex,
   exercises,
   alreadyDone,
+  rationale,
 }: {
   day: { id: string; name: string; index: number };
   phase: Phase;
@@ -55,6 +56,7 @@ export function WorkoutClient({
   weekIndex: number;
   exercises: WorkoutExercise[];
   alreadyDone: boolean;
+  rationale: string | null;
 }) {
   const router = useRouter();
   const [entries, setEntries] = useState<Record<string, EntryState>>(() =>
@@ -150,7 +152,7 @@ export function WorkoutClient({
         >
           <ArrowLeft size={20} strokeWidth={1.5} />
         </Link>
-        <MonoNumber className="text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+        <MonoNumber className="text-xs uppercase tracking-[0.14em] text-ink-soft">
           CYCLE {cycle} · WEEK {weekIndex} · {phase.toUpperCase()}
         </MonoNumber>
         <div className="w-12" />
@@ -163,6 +165,11 @@ export function WorkoutClient({
           {REP_TARGETS.strength[phase]} reps · 3 sets · {exercises.length}{" "}
           exercises
         </MonoNumber>
+        {rationale && (
+          <p className="mt-3 text-sm font-light leading-relaxed text-ink-soft">
+            {rationale}
+          </p>
+        )}
         {alreadyDone && (
           <p className="mt-2 text-xs text-sage-deep">
             Already logged this week — logging again adds a second session.
@@ -214,12 +221,12 @@ export function WorkoutClient({
                     <span className="block truncate font-normal">
                       {ex.name}
                       {ex.shortLabel && (
-                        <MonoNumber className="ml-2 text-[10px] uppercase text-ink-soft">
+                        <MonoNumber className="ml-2 text-[11px] uppercase text-ink-soft">
                           {ex.shortLabel}
                         </MonoNumber>
                       )}
                     </span>
-                    <MonoNumber className="mt-0.5 block text-[10px] uppercase tracking-wider text-ink-soft">
+                    <MonoNumber className="mt-0.5 block text-xs uppercase tracking-wider text-ink-soft">
                       {ex.muscleGroup}
                       {ex.lastWeight != null && (
                         <>
@@ -404,11 +411,11 @@ export function WorkoutClient({
               />
             ) : null}
             <div className="mt-4 flex items-center gap-2">
-              <MonoNumber className="rounded-full bg-blush/40 px-3 py-1 text-[10px] uppercase tracking-wider">
+              <MonoNumber className="rounded-full bg-blush/40 px-3 py-1 text-[11px] uppercase tracking-wider">
                 {videoFor.muscleGroup}
               </MonoNumber>
               {videoFor.equipment && (
-                <MonoNumber className="rounded-full bg-white/60 px-3 py-1 text-[10px] uppercase tracking-wider text-ink-soft">
+                <MonoNumber className="rounded-full bg-white/60 px-3 py-1 text-[11px] uppercase tracking-wider text-ink-soft">
                   {videoFor.equipment}
                 </MonoNumber>
               )}
@@ -446,7 +453,7 @@ export function WorkoutClient({
               </button>
             ))}
           </div>
-          <div className="mt-2 flex justify-between px-2 text-[10px] text-ink-soft/80">
+          <div className="mt-2 flex justify-between px-2 text-[11px] text-ink-soft/80">
             <span>rough</span>
             <span>unstoppable</span>
           </div>

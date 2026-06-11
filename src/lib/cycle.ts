@@ -30,6 +30,9 @@ export const REST_SECONDS: Record<Phase, number> = {
 
 export const SETS_PER_EXERCISE = 3;
 
+/** 3 of 5 sessions completes a week (checkbox). All 5 earns a star. */
+export const WEEK_MIN_SESSIONS = 3;
+
 export interface CycleLogRow {
   program_day_id: string;
   week_phase: Phase;
@@ -38,12 +41,19 @@ export interface CycleLogRow {
   feel_rating: number | null;
 }
 
+export interface WeekClosure {
+  cycle_number: number;
+  week_phase: Phase;
+}
+
 export interface CycleState {
   cycle: number;
   phase: Phase;
   weekIndex: number; // 1..3
   doneDayIds: Set<string>; // days completed in the current cycle + phase
   nextDayId: string | null;
+  /** ≥3 sessions done — she may close the week and move on. */
+  weekClosable: boolean;
   /** True right after week 3 completes — the "cycle complete" moment. */
   cycleJustCompleted: boolean;
 }
@@ -51,18 +61,24 @@ export interface CycleState {
 /**
  * The whole phase engine. State is derived from workout_logs, never stored:
  * the current cycle is the highest cycle logged (or the program's manual
- * reset floor), and the current week is the first phase with unfinished days.
- * When hard week completes, the next cycle starts at light automatically.
+ * reset floor), and the current week is the first phase that's unfinished.
+ * A week is finished when all days are logged OR it was explicitly closed
+ * (possible from 3/5 sessions). When the hard week finishes, the next
+ * cycle starts at light automatically.
  */
 export function deriveCycleState(
   logs: CycleLogRow[],
   orderedDayIds: string[],
-  cycleFloor = 1
+  cycleFloor = 1,
+  closures: WeekClosure[] = []
 ): CycleState {
   const maxLogged = logs.length
     ? Math.max(...logs.map((l) => l.cycle_number))
     : 0;
   const cycle = Math.max(maxLogged, cycleFloor, 1);
+  const closed = new Set(
+    closures.map((c) => `${c.cycle_number}:${c.week_phase}`)
+  );
 
   for (let i = 0; i < PHASES.length; i++) {
     const phase = PHASES[i];
@@ -71,13 +87,16 @@ export function deriveCycleState(
         .filter((l) => l.cycle_number === cycle && l.week_phase === phase)
         .map((l) => l.program_day_id)
     );
-    if (done.size < orderedDayIds.length) {
+    const finished =
+      done.size >= orderedDayIds.length || closed.has(`${cycle}:${phase}`);
+    if (!finished) {
       return {
         cycle,
         phase,
         weekIndex: i + 1,
         doneDayIds: done,
         nextDayId: orderedDayIds.find((id) => !done.has(id)) ?? null,
+        weekClosable: done.size >= WEEK_MIN_SESSIONS,
         cycleJustCompleted: false,
       };
     }
@@ -90,6 +109,7 @@ export function deriveCycleState(
     weekIndex: 1,
     doneDayIds: new Set(),
     nextDayId: orderedDayIds[0] ?? null,
+    weekClosable: false,
     cycleJustCompleted: true,
   };
 }

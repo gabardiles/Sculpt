@@ -53,7 +53,7 @@ export function GoalsClient({
             <li key={g.id}>
               <Card className="flex items-center gap-4 p-4">
                 <ProgressRing progress={g.progress} done={g.progress >= 1}>
-                  <MonoNumber className="text-[10px] text-ink-soft">
+                  <MonoNumber className="text-[11px] text-ink-soft">
                     {Math.round(g.progress * 100)}%
                   </MonoNumber>
                 </ProgressRing>

@@ -152,7 +152,7 @@ export function PhotosClient({
                       className="h-full w-full object-cover"
                     />
                   )}
-                  <MonoNumber className="absolute bottom-1.5 left-1.5 rounded-full bg-ink/50 px-2 py-0.5 text-[10px] text-white">
+                  <MonoNumber className="absolute bottom-1.5 left-1.5 rounded-full bg-ink/50 px-2 py-0.5 text-[11px] text-white">
                     {p.weekLabel}
                   </MonoNumber>
                 </button>
@@ -209,7 +209,7 @@ export function PhotosClient({
                 />
               )}
               <figcaption className="mt-1 text-center">
-                <MonoNumber className="text-[10px] text-ink-soft">
+                <MonoNumber className="text-[11px] text-ink-soft">
                   C{p.cycle} · {p.weekLabel}
                 </MonoNumber>
               </figcaption>
