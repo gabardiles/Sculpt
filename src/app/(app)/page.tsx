@@ -189,11 +189,13 @@ export default async function DashboardPage() {
           <Link href={`/workout/${nextDay.id}`} className="block">
             <Card className="hero-gradient p-6 active:scale-[0.99] transition-transform duration-150">
               <Eyebrow>NEXT UP · DAY {nextDay.day_index}</Eyebrow>
-              <div className="mt-2 flex items-center justify-between">
-                <h2 className="text-2xl font-light tracking-wide">
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <h2 className="text-3xl font-light tracking-wide">
                   {nextDay.name}
                 </h2>
-                <ChevronRight size={22} strokeWidth={1.5} className="text-ink-soft" />
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blush-deep text-white">
+                  <ChevronRight size={20} strokeWidth={2} />
+                </span>
               </div>
               <MonoNumber className="mt-3 block text-xs text-ink-soft">
                 {nextDay.exercises.length} exercises ·{" "}

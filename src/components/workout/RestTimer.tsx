@@ -4,12 +4,14 @@ import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 import { MonoNumber } from "@/components/ui/MonoNumber";
 
-/** Quiet rest countdown chip. Tap to dismiss. */
+/** Rest countdown chip — shows what's coming. Tap to dismiss. */
 export function RestTimer({
   until,
+  nextName,
   onDismiss,
 }: {
   until: number;
+  nextName?: string | null;
   onDismiss: () => void;
 }) {
   const [remaining, setRemaining] = useState(() =>
@@ -38,10 +40,19 @@ export function RestTimer({
       aria-label="Dismiss rest timer"
     >
       <Timer size={16} strokeWidth={1.5} />
-      <MonoNumber className="text-sm">
+      <MonoNumber className="text-sm font-medium text-ink">
         {m}:{String(s).padStart(2, "0")}
       </MonoNumber>
-      <span className="text-[11px] uppercase tracking-wider">rest</span>
+      {nextName ? (
+        <span className="max-w-44 truncate text-xs">
+          <span className="uppercase tracking-wider text-blush-deep font-medium">
+            next
+          </span>{" "}
+          {nextName}
+        </span>
+      ) : (
+        <span className="text-[11px] uppercase tracking-wider">rest</span>
+      )}
     </button>
   );
 }

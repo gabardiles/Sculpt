@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Check, PlayCircle, X } from "lucide-react";
@@ -94,6 +94,10 @@ export function WorkoutClient({
   );
   const allDone = doneCount === exercises.length;
 
+  // The one to attack next: first exercise not yet done.
+  const nextUp = exercises.find((x) => !entries[x.exerciseId].done) ?? null;
+  const cardRefs = useRef<Record<string, HTMLLIElement | null>>({});
+
   const update = useCallback(
     (id: string, patch: Partial<EntryState>) =>
       setEntries((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } })),
@@ -102,7 +106,21 @@ export function WorkoutClient({
 
   function markDone(ex: WorkoutExercise, isLast: boolean) {
     update(ex.exerciseId, { done: true });
-    setExpanded(null);
+    // Hand the spotlight straight to the next exercise: open it and
+    // bring it into view — rest now, but you know where you're going.
+    const next =
+      exercises.find(
+        (x) => x.exerciseId !== ex.exerciseId && !entries[x.exerciseId].done
+      ) ?? null;
+    setExpanded(next?.exerciseId ?? null);
+    if (next) {
+      setTimeout(() => {
+        cardRefs.current[next.exerciseId]?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      }, 200);
+    }
     if (!isLast) {
       setRestUntil(Date.now() + REST_SECONDS[phase] * 1000);
       setRestKey((k) => k + 1);
@@ -162,9 +180,16 @@ export function WorkoutClient({
         <Eyebrow>DAY {day.index}</Eyebrow>
         <h1 className="mt-1 text-3xl font-light tracking-wide">{day.name}</h1>
         <MonoNumber className="mt-2 block text-xs text-ink-soft">
-          {REP_TARGETS.strength[phase]} reps · 3 sets · {exercises.length}{" "}
-          exercises
+          {REP_TARGETS.strength[phase]} reps · 3 sets · {doneCount}/
+          {exercises.length} done
         </MonoNumber>
+        {/* session progress — fills sage as the work gets done */}
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/60">
+          <div
+            className="h-full rounded-full bg-sage transition-[width] duration-500"
+            style={{ width: `${(doneCount / exercises.length) * 100}%` }}
+          />
+        </div>
         {rationale && (
           <p className="mt-3 text-sm font-light leading-relaxed text-ink-soft">
             {rationale}
@@ -186,8 +211,23 @@ export function WorkoutClient({
             ex.prevCycleWeight != null &&
             ex.lastWeight > ex.prevCycleWeight;
           return (
-            <li key={ex.exerciseId}>
-              <Card done={e.done} className="overflow-hidden">
+            <li
+              key={ex.exerciseId}
+              ref={(el) => {
+                cardRefs.current[ex.exerciseId] = el;
+              }}
+            >
+              <Card
+                done={e.done}
+                className={cn(
+                  "overflow-hidden transition-shadow duration-300",
+                  // The next one up gets the spotlight — ringed, lifted,
+                  // unmistakable. We're at the gym. Let's go.
+                  !e.done &&
+                    ex.exerciseId === nextUp?.exerciseId &&
+                    "ring-2 ring-blush-deep shadow-[0_10px_36px_rgba(185,125,119,0.30)]"
+                )}
+              >
                 <button
                   className="flex w-full items-center gap-3 px-5 py-4 text-left min-h-12"
                   onClick={() =>
@@ -219,6 +259,11 @@ export function WorkoutClient({
 
                   <span className="flex-1 min-w-0">
                     <span className="block truncate font-normal">
+                      {!e.done && ex.exerciseId === nextUp?.exerciseId && (
+                        <MonoNumber className="mr-2 rounded-full bg-blush-deep px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-white">
+                          NEXT
+                        </MonoNumber>
+                      )}
                       {ex.name}
                       {ex.shortLabel && (
                         <MonoNumber className="ml-2 text-[11px] uppercase text-ink-soft">
@@ -357,6 +402,7 @@ export function WorkoutClient({
           <RestTimer
             key={restKey}
             until={restUntil}
+            nextName={nextUp?.name ?? null}
             onDismiss={() => setRestUntil(null)}
           />
         </div>
