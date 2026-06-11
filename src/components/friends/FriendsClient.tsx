@@ -136,8 +136,28 @@ export function FriendsClient({
 
   return (
     <div>
-      {/* one row: composer + photo + send + friends/invite. Feed leads. */}
-      <form onSubmit={postMessage} className="mt-4 flex items-center gap-2">
+      {/* header — friends/invites live top right */}
+      <header className="flex items-start justify-between gap-3">
+        <div>
+          <Eyebrow>FRIENDS</Eyebrow>
+          <h1 className="mt-1 text-3xl font-light tracking-wide">The feed</h1>
+          <p className="mt-2 text-sm font-light text-ink-soft">
+            Wins only — workouts, PBs, gym photos. Never your weight or
+            progress photos.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Friends and invites"
+          onClick={() => setManageOpen(true)}
+          className="mt-1 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-surface text-ink-soft active:bg-ink/5"
+        >
+          <Users size={18} strokeWidth={1.5} />
+        </button>
+      </header>
+
+      {/* composer: input + send, photo button below */}
+      <form onSubmit={postMessage} className="mt-5 flex items-center gap-2">
         {/* No `capture` attr: mobile offers camera OR photo library. */}
         <input
           ref={fileRef}
@@ -157,15 +177,6 @@ export function FriendsClient({
           className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-5 text-sm outline-none focus:border-blush-deep"
         />
         <button
-          type="button"
-          aria-label="Post a gym photo"
-          disabled={posting}
-          onClick={() => fileRef.current?.click()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-surface text-ink-soft active:bg-ink/5"
-        >
-          <Camera size={18} strokeWidth={1.5} />
-        </button>
-        <button
           type="submit"
           aria-label="Send message"
           disabled={posting || !message.trim()}
@@ -173,15 +184,16 @@ export function FriendsClient({
         >
           <Send size={17} strokeWidth={1.5} />
         </button>
-        <button
-          type="button"
-          aria-label="Friends and invites"
-          onClick={() => setManageOpen(true)}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-surface text-ink-soft active:bg-ink/5"
-        >
-          <Users size={18} strokeWidth={1.5} />
-        </button>
       </form>
+      <PillButton
+        variant="ghost"
+        className="mt-2 w-full"
+        disabled={posting}
+        onClick={() => fileRef.current?.click()}
+      >
+        <Camera size={16} strokeWidth={1.5} />
+        {posting ? "Posting…" : "Share a gym photo"}
+      </PillButton>
 
       {/* feed */}
       {feed.length === 0 ? (

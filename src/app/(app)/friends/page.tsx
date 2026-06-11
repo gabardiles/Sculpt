@@ -1,5 +1,4 @@
 import { requireUser, getProfile } from "@/lib/data";
-import { Eyebrow } from "@/components/ui/MonoNumber";
 import {
   FriendsClient,
   type FeedItem,
@@ -89,13 +88,6 @@ export default async function FriendsPage() {
 
   return (
     <main className="animate-fade-in">
-      <Eyebrow>FRIENDS</Eyebrow>
-      <h1 className="mt-1 text-3xl font-light tracking-wide">The feed</h1>
-      <p className="mt-2 text-sm font-light text-ink-soft">
-        Wins only — workouts, PBs, gym photos. Never your weight or progress
-        photos.
-      </p>
-
       <FriendsClient
         myCode={profile?.friend_code ?? ""}
         userId={user.id}

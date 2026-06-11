@@ -352,14 +352,17 @@ export default async function DashboardPage() {
       {/* the week — thin rows with names, tappable in any order */}
       <section className="mt-5">
         <DayList
-          days={program.days.map((d) => ({
-            id: d.id,
-            index: d.day_index,
-            name: d.name,
-            done: state.doneDayIds.has(d.id),
-            doneAt: doneAtByDay.get(d.id) ?? null,
-            isNext: d.id === state.nextDayId,
-          }))}
+          days={program.days
+            // The hero card already shows the next day — don't list it twice.
+            .filter((d) => d.id !== state.nextDayId)
+            .map((d) => ({
+              id: d.id,
+              index: d.day_index,
+              name: d.name,
+              done: state.doneDayIds.has(d.id),
+              doneAt: doneAtByDay.get(d.id) ?? null,
+              isNext: false,
+            }))}
         />
         {state.weekClosable && (
           <CloseWeekButton
