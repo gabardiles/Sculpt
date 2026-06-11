@@ -103,13 +103,13 @@ export default function LoginPage() {
               <input
                 inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={10}
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="······"
-                aria-label="6-digit code"
-                className="h-14 rounded-full border border-ink/15 bg-white/60 px-5 text-center font-mono text-2xl tracking-[0.4em] outline-none focus:border-blush-deep"
+                placeholder="········"
+                aria-label="Sign-in code"
+                className="h-14 rounded-full border border-ink/15 bg-white/60 px-5 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:border-blush-deep"
               />
               {error && (
                 <p className="text-center text-sm text-blush-deep">{error}</p>
