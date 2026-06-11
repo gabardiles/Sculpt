@@ -116,8 +116,8 @@ export default async function DashboardPage() {
                 <ChevronRight size={22} strokeWidth={1.5} className="text-ink-soft" />
               </div>
               <MonoNumber className="mt-3 block text-xs text-ink-soft">
-                {nextDay.exercises.length} exercises · {REP_TARGETS[state.phase]}{" "}
-                reps · 3 sets
+                {nextDay.exercises.length} exercises ·{" "}
+                {REP_TARGETS.strength[state.phase]} reps · 3 sets
               </MonoNumber>
             </Card>
           </Link>

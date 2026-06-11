@@ -13,6 +13,9 @@ export type MovementPattern =
 
 export type GoalType = "body_weight" | "exercise_pr" | "consistency";
 
+/** Training role — drives rep targets per phase and swap tiering. */
+export type RepProfile = "strength" | "pump" | "timed";
+
 export interface Profile {
   id: string;
   name: string | null;
@@ -62,6 +65,7 @@ export interface Exercise {
   cue: string | null;
   image_url: string | null;
   unit: "kg" | "s";
+  rep_profile: RepProfile;
   is_global: boolean;
 }
 

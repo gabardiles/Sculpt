@@ -1,19 +1,24 @@
-import type { Phase } from "./types";
+import type { Phase, RepProfile } from "./types";
 
 export const PHASES: Phase[] = ["light", "medium", "hard"];
 
-/** Rep targets are derived from phase, never stored. 3 sets, always. */
-export const REP_TARGETS: Record<Phase, string> = {
-  light: "10–12",
-  medium: "6–8",
-  hard: "4–6",
+/**
+ * Rep targets are derived from phase + the exercise's rep profile, never
+ * stored. 3 sets, always. Compounds wave 10–12 / 6–8 / 4–6; pump work
+ * stays in the ranges where it actually works (a 4-rep lateral raise is
+ * just trap-heaving); timed holds wave in seconds.
+ */
+export const REP_TARGETS: Record<RepProfile, Record<Phase, string>> = {
+  strength: { light: "10–12", medium: "6–8", hard: "4–6" },
+  pump: { light: "15–20", medium: "12–15", hard: "10–12" },
+  timed: { light: "30 s", medium: "40 s", hard: "45 s" },
 };
 
 /** Prefill value for the reps field (top of the phase range). */
-export const REP_DEFAULT: Record<Phase, number> = {
-  light: 12,
-  medium: 8,
-  hard: 6,
+export const REP_DEFAULT: Record<RepProfile, Record<Phase, number>> = {
+  strength: { light: 12, medium: 8, hard: 6 },
+  pump: { light: 20, medium: 15, hard: 12 },
+  timed: { light: 30, medium: 40, hard: 45 },
 };
 
 /** Rest timer defaults — hard weeks earn longer rest. */

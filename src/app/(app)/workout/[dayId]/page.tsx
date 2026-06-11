@@ -51,6 +51,7 @@ export default async function WorkoutPage({
       muscleGroup: pe.exercise.muscle_group,
       equipment: pe.exercise.equipment,
       unit: pe.exercise.unit,
+      repProfile: pe.exercise.rep_profile,
       cue: pe.exercise.cue,
       instructionUrl: pe.exercise.instruction_url,
       imageUrl: pe.exercise.image_url,

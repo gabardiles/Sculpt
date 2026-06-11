@@ -60,14 +60,24 @@ export function ProgramClient({
   const [busy, setBusy] = useState(false);
 
   // The guardrail: only same movement pattern + same primary muscle group.
+  // Same training role (rep_profile) comes first — a heavy compound and a
+  // pump finisher are not real substitutes, even when the muscle matches.
   const swapOptions = useMemo(() => {
-    if (!swapFor) return [];
-    return library.filter(
+    if (!swapFor) return { sameTier: [], otherTier: [] };
+    const compatible = library.filter(
       (e) =>
         e.id !== swapFor.exercise.id &&
         e.movement_pattern === swapFor.exercise.movement_pattern &&
         e.muscle_group === swapFor.exercise.muscle_group
     );
+    return {
+      sameTier: compatible.filter(
+        (e) => e.rep_profile === swapFor.exercise.rep_profile
+      ),
+      otherTier: compatible.filter(
+        (e) => e.rep_profile !== swapFor.exercise.rep_profile
+      ),
+    };
   }, [swapFor, library]);
 
   const addOptions = useMemo(() => {
@@ -173,7 +183,7 @@ export function ProgramClient({
                   </MonoNumber>
                 </h2>
                 <MonoNumber className="text-[11px] text-ink-soft">
-                  {REP_TARGETS[phase]} reps
+                  {REP_TARGETS.strength[phase]} reps
                 </MonoNumber>
               </div>
 
@@ -303,27 +313,52 @@ export function ProgramClient({
           <MonoNumber className="text-[10px] uppercase tracking-wider text-ink-soft">
             {swapFor?.exercise.movement_pattern} · {swapFor?.exercise.muscle_group}
           </MonoNumber>
-          {swapOptions.length === 0 ? (
+          {swapOptions.sameTier.length + swapOptions.otherTier.length === 0 ? (
             <p className="mt-4 text-sm font-light text-ink-soft">
               No equivalent alternatives in the library yet.
             </p>
           ) : (
-            <ul className="mt-3 flex flex-col gap-2">
-              {swapOptions.map((e) => (
-                <li key={e.id}>
-                  <button
-                    onClick={() => doSwap(e.id)}
-                    disabled={busy}
-                    className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left active:scale-[0.99] transition-transform"
-                  >
-                    <span className="text-sm">{e.name}</span>
-                    <MonoNumber className="text-[10px] uppercase text-ink-soft">
-                      {e.equipment}
-                    </MonoNumber>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="mt-3 flex flex-col gap-2">
+                {swapOptions.sameTier.map((e) => (
+                  <li key={e.id}>
+                    <button
+                      onClick={() => doSwap(e.id)}
+                      disabled={busy}
+                      className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left active:scale-[0.99] transition-transform"
+                    >
+                      <span className="text-sm">{e.name}</span>
+                      <MonoNumber className="text-[10px] uppercase text-ink-soft">
+                        {e.equipment}
+                      </MonoNumber>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              {swapOptions.otherTier.length > 0 && (
+                <>
+                  <MonoNumber className="mt-4 block text-[10px] uppercase tracking-wider text-ink-soft/60">
+                    Different intensity
+                  </MonoNumber>
+                  <ul className="mt-2 flex flex-col gap-2">
+                    {swapOptions.otherTier.map((e) => (
+                      <li key={e.id}>
+                        <button
+                          onClick={() => doSwap(e.id)}
+                          disabled={busy}
+                          className="glass flex w-full items-center justify-between px-4 py-3 min-h-12 text-left opacity-80 active:scale-[0.99] transition-transform"
+                        >
+                          <span className="text-sm">{e.name}</span>
+                          <MonoNumber className="text-[10px] uppercase text-ink-soft">
+                            {e.rep_profile} · {e.equipment}
+                          </MonoNumber>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </>
           )}
         </div>
       </Sheet>

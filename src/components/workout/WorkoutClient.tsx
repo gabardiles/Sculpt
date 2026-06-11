@@ -18,7 +18,7 @@ import { Sheet } from "@/components/ui/Sheet";
 import { RestTimer } from "@/components/workout/RestTimer";
 import { completeWorkout } from "@/lib/actions";
 import { REP_DEFAULT, REP_TARGETS, REST_SECONDS } from "@/lib/cycle";
-import type { Phase } from "@/lib/types";
+import type { Phase, RepProfile } from "@/lib/types";
 import { formatKg } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -30,6 +30,7 @@ export interface WorkoutExercise {
   muscleGroup: string;
   equipment: string | null;
   unit: "kg" | "s";
+  repProfile: RepProfile;
   cue: string | null;
   instructionUrl: string | null;
   imageUrl: string | null;
@@ -66,8 +67,15 @@ export function WorkoutClient({
       exercises.map((ex) => [
         ex.exerciseId,
         {
-          weight: ex.lastWeight != null ? String(ex.lastWeight) : "",
-          reps: String(ex.unit === "s" ? "" : REP_DEFAULT[phase]),
+          // Timed holds log seconds in the weight field — prefill the
+          // phase's target hold when there's no history.
+          weight:
+            ex.lastWeight != null
+              ? String(ex.lastWeight)
+              : ex.unit === "s"
+                ? String(REP_DEFAULT.timed[phase])
+                : "",
+          reps: String(ex.unit === "s" ? "" : REP_DEFAULT[ex.repProfile][phase]),
           done: false,
         },
       ])
@@ -165,7 +173,8 @@ export function WorkoutClient({
         <Eyebrow>DAY {day.index}</Eyebrow>
         <h1 className="mt-1 text-3xl font-light tracking-wide">{day.name}</h1>
         <MonoNumber className="mt-2 block text-xs text-ink-soft">
-          {REP_TARGETS[phase]} reps · 3 sets · {exercises.length} exercises
+          {REP_TARGETS.strength[phase]} reps · 3 sets · {exercises.length}{" "}
+          exercises
         </MonoNumber>
         {alreadyDone && (
           <p className="mt-2 text-xs text-sage-deep">
@@ -289,6 +298,11 @@ export function WorkoutClient({
                       </button>
                     </div>
 
+                    {ex.unit === "s" && (
+                      <MonoNumber className="mt-3 block text-center text-xs text-ink-soft/60">
+                        target {REP_TARGETS.timed[phase]} hold
+                      </MonoNumber>
+                    )}
                     {ex.unit === "kg" && (
                       <div className="mt-3 flex items-center justify-center gap-2">
                         <MonoNumber className="text-xs text-ink-soft">reps</MonoNumber>
@@ -302,7 +316,7 @@ export function WorkoutClient({
                           className="w-12 rounded-full border border-ink/10 bg-white/50 py-1 text-center font-mono text-sm outline-none"
                         />
                         <MonoNumber className="text-xs text-ink-soft/60">
-                          target {REP_TARGETS[phase]}
+                          target {REP_TARGETS[ex.repProfile][phase]}
                         </MonoNumber>
                       </div>
                     )}
