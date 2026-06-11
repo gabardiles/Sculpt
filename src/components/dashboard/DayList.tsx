@@ -32,12 +32,16 @@ export function DayList({ days }: { days: DayRowItem[] }) {
                 d.isNext && "ring-2 ring-blush-deep/60"
               )}
             >
-              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl">
+              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-blush/25">
+                {/* number fallback shows wherever the photo is hidden */}
+                <MonoNumber className="absolute inset-0 flex items-center justify-center text-sm text-ink-soft">
+                  {d.index}
+                </MonoNumber>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={dayImage(d.index)}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover"
+                  className="editorial-img absolute inset-0 h-full w-full object-cover"
                 />
                 {d.done && (
                   <span className="absolute inset-0 flex items-center justify-center bg-sage/75 text-white">

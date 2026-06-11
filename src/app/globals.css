@@ -92,6 +92,13 @@ body {
   border-color: rgba(95, 122, 82, 0.35);
 }
 
+/* Spartan imagery is pending — hide the borrowed editorial photos for now.
+   When the dark/masculine set lands in src/lib/editorial.ts, delete this
+   rule and they appear everywhere at once. */
+[data-theme="spartan"] .editorial-img {
+  display: none;
+}
+
 [data-theme="spartan"] .hero-gradient {
   background: linear-gradient(
     160deg,

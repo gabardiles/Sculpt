@@ -219,23 +219,23 @@ export function WorkoutClient({
   return (
     <main className="animate-fade-in">
       {/* editorial banner — full bleed, flush with the top edge */}
-      <div className="relative -mx-5 -mt-[max(1.5rem,env(safe-area-inset-top))] h-72 overflow-hidden rounded-b-[28px]">
+      <div className="relative -mx-5 -mt-[max(1.5rem,env(safe-area-inset-top))] h-72 overflow-hidden rounded-b-[28px] bg-blush/25">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={dayImage(day.index)}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          className="editorial-img absolute inset-0 h-full w-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-ink/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-black/30" />
         <div className="absolute inset-x-0 top-[max(0.5rem,env(safe-area-inset-top))] flex items-center justify-between px-3">
           <Link
             href="/"
             aria-label="Back"
-            className="flex h-12 w-12 items-center justify-center rounded-full bg-ink/25 text-white backdrop-blur-sm active:bg-ink/40"
+            className="flex h-12 w-12 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur-sm active:bg-black/50"
           >
             <ArrowLeft size={20} strokeWidth={1.8} />
           </Link>
-          <MonoNumber className="rounded-full bg-ink/25 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+          <MonoNumber className="rounded-full bg-black/35 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-white backdrop-blur-sm">
             CYCLE {cycle} · WEEK {weekIndex} · {phase.toUpperCase()}
           </MonoNumber>
         </div>

@@ -312,14 +312,14 @@ export default async function DashboardPage() {
       <section className="mt-6">
         {nextDay ? (
           <Link href={`/workout/${nextDay.id}`} className="block">
-            <Card className="relative h-64 overflow-hidden p-0 active:scale-[0.99] transition-transform duration-150">
+            <Card className="relative h-64 overflow-hidden bg-blush/25 p-0 active:scale-[0.99] transition-transform duration-150">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={dayImage(nextDay.day_index)}
                 alt=""
-                className="absolute inset-0 h-full w-full object-cover"
+                className="editorial-img absolute inset-0 h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/20 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6">
                 <Eyebrow className="text-white/75">
                   NEXT UP · DAY {nextDay.day_index}
