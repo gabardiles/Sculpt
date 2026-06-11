@@ -21,6 +21,17 @@ export const SHARE_PROMPTS: Record<string, string> = {
 export const SHARE_PROMPT_FALLBACK =
   "Done. Show your friends what showing up looks like.";
 
+// Spartan ("Strong & Built") share prompts — masculine-calm, no bro energy.
+Object.assign(SHARE_PROMPTS, {
+  Push: "Pressing done. The pump fades by tonight — the log doesn't. One photo, no caption needed.",
+  Pull: "You can't see your own back. That's what the camera and the friends are for.",
+  Legs: "Leg day, finished, in full. Nobody trains legs for the feed — which is exactly why it belongs there.",
+  "Shoulders & Arms":
+    "Sleeves are tighter than they were an hour ago. Document it and move on.",
+  "Chest, Back & Core":
+    "Fifth day down. Quiet week of work — let the record show it.",
+});
+
 export const DAY_RATIONALE: Record<string, string> = {
   "Glutes & Hamstrings":
     "Hinge day. The RDL loads your glutes and hamstrings at long muscle " +
@@ -51,6 +62,40 @@ export const DAY_RATIONALE: Record<string, string> = {
     "rather than load — metabolic stress is a real growth signal, and it " +
     "leaves you recovered for the next hinge day.",
 };
+
+// Spartan ("Strong & Built") day rationales.
+Object.assign(DAY_RATIONALE, {
+  Push:
+    "The two presses that build a chest and a pair of shoulders come first, " +
+    "while you're strongest — flat for mass, overhead for the frame that " +
+    "carries it. Dips load the chest at a deep stretch, the exact range " +
+    "presses miss. Side delts and triceps finish high-rep on purpose: " +
+    "that's the range small muscles respond to, and where the width comes from.",
+  Pull:
+    "The V-taper is built here. Pull-ups widen the lats from above, rows " +
+    "thicken the mid-back from straight on — vertical and horizontal pulling " +
+    "are different jobs, so both get a heavy slot. Face pulls keep the rear " +
+    "delts honest against all that pressing, and biceps finish the day " +
+    "already warm from every row before them.",
+  Legs:
+    "One leg day, done properly. The squat is the biggest lift of the week, " +
+    "so it goes first; the RDL loads the hamstrings at long length where " +
+    "growth is best stimulated; split squats add the single-leg strength " +
+    "that makes you athletic, not just big. Core closes the day hanging " +
+    "from a bar.",
+  "Shoulders & Arms":
+    "Width and arms get their own day. Shoulder width is mostly side delts, " +
+    "and side delts are mostly volume — cables keep tension on every " +
+    "centimetre of the raise. The close-grip bench gives triceps a heavy " +
+    "compound, and rear delts get direct work so the shoulders look as good " +
+    "from behind as from the front.",
+  "Chest, Back & Core":
+    "The second hit for the muscles that make the silhouette. Incline " +
+    "pressing fills in the upper chest; the pulldown and chest-supported row " +
+    "add lat width with the lower back fully unloaded. Then the core pair " +
+    "trains the trunk's two real jobs — moving under load and refusing to " +
+    "move at all.",
+});
 
 export const WHY_SWAPS =
   "Swaps only offer exercises with the same movement pattern and the same " +

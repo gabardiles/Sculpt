@@ -146,7 +146,7 @@ export function PhotosClient({
                   key={p.id}
                   onClick={() => tapPhoto(p)}
                   className={cn(
-                    "relative aspect-[3/4] overflow-hidden rounded-2xl bg-white/50 transition-all",
+                    "relative aspect-[3/4] overflow-hidden rounded-2xl bg-surface-soft transition-all",
                     compareMode && compareIds.includes(p.id) &&
                       "ring-2 ring-blush-deep ring-offset-2 ring-offset-bg"
                   )}

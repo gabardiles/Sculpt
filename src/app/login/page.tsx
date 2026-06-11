@@ -92,7 +92,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="h-12 rounded-full border border-ink/15 bg-white/60 px-5 text-base outline-none focus:border-blush-deep"
+                className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-base outline-none focus:border-blush-deep"
               />
               {error && <p className="text-sm text-blush-deep">{error}</p>}
               <PillButton type="submit" disabled={busy || !email}>
@@ -117,7 +117,7 @@ export default function LoginPage() {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                 placeholder="········"
                 aria-label="Sign-in code"
-                className="h-14 rounded-full border border-ink/15 bg-white/60 px-5 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:border-blush-deep"
+                className="h-14 rounded-full border border-ink/15 bg-surface px-5 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:border-blush-deep"
               />
               {error && (
                 <p className="text-center text-sm text-blush-deep">{error}</p>

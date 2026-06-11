@@ -51,7 +51,7 @@ export function Sheet({
         aria-modal="true"
         className={cn(
           "relative w-full max-w-md max-h-[88dvh] overflow-y-auto",
-          "rounded-t-[28px] bg-bg/95 backdrop-blur-xl border-t border-white/60",
+          "rounded-t-[28px] bg-bg/95 backdrop-blur-xl border-t border-edge",
           "px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] animate-fade-up",
           className
         )}

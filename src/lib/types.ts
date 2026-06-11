@@ -22,6 +22,7 @@ export interface Profile {
   is_admin: boolean;
   invited_by: string | null;
   friend_code: string;
+  theme: "sculpt" | "spartan";
   created_at: string;
 }
 

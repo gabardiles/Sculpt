@@ -16,6 +16,212 @@ async function requireUserId() {
 
 // ------------------------------------------------------------- onboarding
 
+type Supa = Awaited<ReturnType<typeof createClient>>;
+
+const TEMPLATE_NAMES = ["Lean & Sculpted", "Strong & Built"] as const;
+
+async function cloneTemplateProgram(
+  supabase: Supa,
+  userId: string,
+  templateName: string
+): Promise<boolean> {
+  const { data: template } = await supabase
+    .from("programs")
+    .select("*, program_days(*, program_exercises(*))")
+    .is("user_id", null)
+    .eq("name", templateName)
+    .limit(1)
+    .maybeSingle();
+  if (!template) return false;
+
+  const { data: program } = await supabase
+    .from("programs")
+    .insert({
+      user_id: userId,
+      name: template.name,
+      weeks: template.weeks,
+      days_per_week: template.days_per_week,
+      active: true,
+    })
+    .select("id")
+    .single();
+  if (!program) return false;
+
+  type TemplateDay = {
+    day_index: number;
+    name: string;
+    program_exercises: { exercise_id: string; sort: number; sets: number }[];
+  };
+  for (const day of (template.program_days ?? []) as TemplateDay[]) {
+    const { data: newDay } = await supabase
+      .from("program_days")
+      .insert({
+        program_id: program.id,
+        day_index: day.day_index,
+        name: day.name,
+      })
+      .select("id")
+      .single();
+    if (newDay && day.program_exercises?.length) {
+      await supabase.from("program_exercises").insert(
+        day.program_exercises.map((pe) => ({
+          program_day_id: newDay.id,
+          exercise_id: pe.exercise_id,
+          sort: pe.sort,
+          sets: pe.sets,
+        }))
+      );
+    }
+  }
+  return true;
+}
+
+export interface IntakeAnswers {
+  glutes: number;
+  strong: number;
+  lean: number;
+}
+
+function parseSlider(v: FormDataEntryValue | null, fallback: number): number {
+  const n = parseInt(String(v ?? ""), 10);
+  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : fallback;
+}
+
+/**
+ * Deterministic, coach-approved program adjustments — applied ONCE per
+ * submit, never per-render. All swaps respect the same-pattern/same-muscle
+ * guardrail; compounds are never removed.
+ */
+async function applyIntakeCore(
+  supabase: Supa,
+  userId: string,
+  answers: IntakeAnswers
+): Promise<string[]> {
+  const { getActiveProgram } = await import("@/lib/data");
+  const program = await getActiveProgram(supabase, userId);
+  if (!program) return [];
+
+  const changes: string[] = [];
+  const { data: lib } = await supabase
+    .from("exercises")
+    .select("*")
+    .eq("is_global", true);
+  type Ex = {
+    id: string;
+    name: string;
+    muscle_group: string;
+    movement_pattern: string;
+    rep_profile: string;
+  };
+  const library = (lib ?? []) as Ex[];
+  const inProgram = new Set(
+    program.days.flatMap((d) => d.exercises.map((pe) => pe.exercise_id))
+  );
+
+  // Strong ≥ 4: up to two pump accessories become strength-tier moves,
+  // same pattern + muscle, later days first (finishers go heavy).
+  if (answers.strong >= 4) {
+    let swapped = 0;
+    const rows = [...program.days]
+      .reverse()
+      .flatMap((d) => [...d.exercises].reverse());
+    for (const pe of rows) {
+      if (swapped >= 2) break;
+      if (pe.exercise.rep_profile !== "pump") continue;
+      const alt = library.find(
+        (e) =>
+          !inProgram.has(e.id) &&
+          e.rep_profile === "strength" &&
+          e.movement_pattern === pe.exercise.movement_pattern &&
+          e.muscle_group === pe.exercise.muscle_group
+      );
+      if (!alt) continue;
+      await supabase
+        .from("program_exercises")
+        .update({ exercise_id: alt.id })
+        .eq("id", pe.id);
+      inProgram.delete(pe.exercise_id);
+      inProgram.add(alt.id);
+      changes.push(`${pe.exercise.name} → ${alt.name} (heavier work)`);
+      swapped++;
+    }
+  }
+
+  // Lean upper ≥ 4: one extra upper-body pump accessory on the upper day.
+  if (answers.lean >= 4) {
+    const upperCount = (d: (typeof program.days)[number]) =>
+      d.exercises.filter((pe) =>
+        ["push", "pull"].includes(pe.exercise.movement_pattern)
+      ).length;
+    const upperDay = [...program.days].sort(
+      (a, b) => upperCount(b) - upperCount(a)
+    )[0];
+    if (upperDay && upperDay.exercises.length < 7) {
+      const pick = library.find(
+        (e) =>
+          !inProgram.has(e.id) &&
+          e.rep_profile === "pump" &&
+          ["shoulders", "arms", "chest", "back"].includes(e.muscle_group)
+      );
+      if (pick) {
+        const nextSort =
+          Math.max(0, ...upperDay.exercises.map((x) => x.sort)) + 1;
+        await supabase.from("program_exercises").insert({
+          program_day_id: upperDay.id,
+          exercise_id: pick.id,
+          sort: nextSort,
+          sets: 3,
+        });
+        inProgram.add(pick.id);
+        changes.push(`Added ${pick.name} to ${upperDay.name}`);
+      }
+    }
+  }
+
+  // Glutes ≤ 2: trim one glute pump from the glute-heaviest day.
+  if (answers.glutes <= 2) {
+    const glutePumps = (d: (typeof program.days)[number]) =>
+      d.exercises.filter(
+        (pe) =>
+          pe.exercise.muscle_group === "glutes" &&
+          pe.exercise.rep_profile === "pump"
+      );
+    const gluteDay = [...program.days].sort(
+      (a, b) => glutePumps(b).length - glutePumps(a).length
+    )[0];
+    if (gluteDay && gluteDay.exercises.length > 5) {
+      const victim = glutePumps(gluteDay).at(-1);
+      if (victim) {
+        await supabase.from("program_exercises").delete().eq("id", victim.id);
+        changes.push(`Removed ${victim.exercise.name} (less glute focus)`);
+      }
+    }
+  }
+
+  await supabase
+    .from("programs")
+    .update({
+      intake: { ...answers, applied_at: new Date().toISOString() },
+    })
+    .eq("id", program.id)
+    .eq("user_id", userId);
+
+  return changes;
+}
+
+export async function applyIntake(answers: IntakeAnswers) {
+  const { supabase, userId } = await requireUserId();
+  const safe: IntakeAnswers = {
+    glutes: Math.min(5, Math.max(1, Math.round(answers.glutes))),
+    strong: Math.min(5, Math.max(1, Math.round(answers.strong))),
+    lean: Math.min(5, Math.max(1, Math.round(answers.lean))),
+  };
+  const changes = await applyIntakeCore(supabase, userId, safe);
+  revalidatePath("/");
+  revalidatePath("/program");
+  return { ok: true as const, changes };
+}
+
 export async function completeOnboarding(formData: FormData) {
   const { supabase, userId } = await requireUserId();
   const name = String(formData.get("name") ?? "").trim();
@@ -23,7 +229,7 @@ export async function completeOnboarding(formData: FormData) {
 
   await supabase.from("profiles").update({ name }).eq("id", userId);
 
-  // Clone the global template program if she doesn't have one yet.
+  // Clone the default template if she doesn't have a program yet.
   const { data: existing } = await supabase
     .from("programs")
     .select("id")
@@ -32,56 +238,17 @@ export async function completeOnboarding(formData: FormData) {
     .maybeSingle();
 
   if (!existing) {
-    const { data: template } = await supabase
-      .from("programs")
-      .select("*, program_days(*, program_exercises(*))")
-      .is("user_id", null)
-      .eq("active", true)
-      .limit(1)
-      .maybeSingle();
+    await cloneTemplateProgram(supabase, userId, TEMPLATE_NAMES[0]);
+  }
 
-    if (template) {
-      const { data: program } = await supabase
-        .from("programs")
-        .insert({
-          user_id: userId,
-          name: template.name,
-          weeks: template.weeks,
-          days_per_week: template.days_per_week,
-          active: true,
-        })
-        .select("id")
-        .single();
-
-      if (program) {
-        type TemplateDay = {
-          day_index: number;
-          name: string;
-          program_exercises: { exercise_id: string; sort: number; sets: number }[];
-        };
-        for (const day of (template.program_days ?? []) as TemplateDay[]) {
-          const { data: newDay } = await supabase
-            .from("program_days")
-            .insert({
-              program_id: program.id,
-              day_index: day.day_index,
-              name: day.name,
-            })
-            .select("id")
-            .single();
-          if (newDay && day.program_exercises?.length) {
-            await supabase.from("program_exercises").insert(
-              day.program_exercises.map((pe) => ({
-                program_day_id: newDay.id,
-                exercise_id: pe.exercise_id,
-                sort: pe.sort,
-                sets: pe.sets,
-              }))
-            );
-          }
-        }
-      }
-    }
+  // Intake sliders (defaults change nothing — the template IS the default).
+  const answers: IntakeAnswers = {
+    glutes: parseSlider(formData.get("glutes"), 5),
+    strong: parseSlider(formData.get("strong"), 3),
+    lean: parseSlider(formData.get("lean"), 3),
+  };
+  if (answers.strong >= 4 || answers.lean >= 4 || answers.glutes <= 2) {
+    await applyIntakeCore(supabase, userId, answers);
   }
 
   redirect("/");
@@ -466,6 +633,40 @@ export async function inviteUser(formData: FormData) {
     };
   }
   return { ok: true as const };
+}
+
+// ------------------------------------------------------------------- theme
+
+export async function setTheme(theme: "sculpt" | "spartan") {
+  const { supabase, userId } = await requireUserId();
+  if (theme !== "sculpt" && theme !== "spartan") return;
+  await supabase.from("profiles").update({ theme }).eq("id", userId);
+  // Cookie mirror: the layout reads this with zero network cost.
+  const { cookies } = await import("next/headers");
+  (await cookies()).set("sculpt-theme", theme, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/", "layout");
+}
+
+/** Switch to the other template: archive the current program, clone fresh. */
+export async function switchProgram(templateName: string) {
+  const { supabase, userId } = await requireUserId();
+  if (!TEMPLATE_NAMES.includes(templateName as (typeof TEMPLATE_NAMES)[number])) {
+    return { ok: false as const, error: "Unknown program." };
+  }
+  await supabase
+    .from("programs")
+    .update({ active: false })
+    .eq("user_id", userId)
+    .eq("active", true);
+  const ok = await cloneTemplateProgram(supabase, userId, templateName);
+  revalidatePath("/", "layout");
+  return ok
+    ? { ok: true as const }
+    : { ok: false as const, error: "Template not found — run the latest SQL." };
 }
 
 // -------------------------------------------------------------------- auth

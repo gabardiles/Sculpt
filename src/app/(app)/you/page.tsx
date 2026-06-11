@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { requireUser, getProfile, getGoals } from "@/lib/data";
 import { signOut } from "@/lib/actions";
+import { ThemeSwitch } from "@/components/you/ThemeSwitch";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { formatKg } from "@/lib/format";
@@ -120,6 +121,14 @@ export default async function YouPage() {
         </ul>
       </section>
 
+      {/* appearance */}
+      <section className="mt-8">
+        <Eyebrow>APPEARANCE</Eyebrow>
+        <div className="mt-2">
+          <ThemeSwitch current={profile?.theme === "spartan" ? "spartan" : "sculpt"} />
+        </div>
+      </section>
+
       {/* account */}
       <section className="mt-8">
         <Eyebrow>ACCOUNT</Eyebrow>
@@ -137,7 +146,7 @@ export default async function YouPage() {
           )}
           <form action={signOut}>
             <button className="flex min-h-12 w-full items-center gap-4 rounded-card px-5 py-3 text-left text-ink-soft active:bg-ink/5">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/60">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface">
                 <LogOut size={18} strokeWidth={1.5} />
               </span>
               <span className="font-light">Sign out</span>

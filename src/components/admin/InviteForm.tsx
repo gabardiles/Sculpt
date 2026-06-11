@@ -26,7 +26,7 @@ export function InviteForm() {
           type="email"
           required
           placeholder="her@email.com"
-          className="h-12 rounded-full border border-ink/15 bg-white/60 px-5 text-base outline-none focus:border-blush-deep"
+          className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-base outline-none focus:border-blush-deep"
         />
         <PillButton type="submit" disabled={busy}>
           {busy ? "Sending…" : "Send invite"}

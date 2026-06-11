@@ -9,6 +9,10 @@
   --color-sage: #a9bca4;
   --color-sage-deep: #5f7a58;
   --color-glass: rgba(255, 255, 255, 0.55);
+  --color-surface: rgba(255, 255, 255, 0.6);
+  --color-surface-strong: rgba(255, 255, 255, 0.88);
+  --color-surface-soft: rgba(255, 255, 255, 0.45);
+  --color-edge: rgba(255, 255, 255, 0.65);
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
@@ -58,6 +62,43 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Sculpt — Spartan. Warm charcoal, bone text, bronze accent.
+   Pure variable swap: zero JS, zero extra requests, zero runtime cost. */
+[data-theme="spartan"] {
+  --color-bg: #16130f;
+  --color-blush: #8a6a3c;
+  --color-blush-deep: #c89a5e;
+  --color-ink: #ede6e0;
+  --color-ink-soft: #a3978a;
+  --color-sage: #5f7a52;
+  --color-sage-deep: #a9c79a;
+  --color-glass: rgba(255, 255, 255, 0.06);
+  --color-surface: rgba(255, 255, 255, 0.08);
+  --color-surface-strong: rgba(28, 24, 19, 0.92);
+  --color-surface-soft: rgba(255, 255, 255, 0.05);
+  --color-edge: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="spartan"] .glass,
+[data-theme="spartan"] .glass-done {
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="spartan"] .glass-done {
+  background: rgba(95, 122, 82, 0.22);
+  border-color: rgba(95, 122, 82, 0.35);
+}
+
+[data-theme="spartan"] .hero-gradient {
+  background: linear-gradient(
+    160deg,
+    rgba(138, 106, 60, 0.45) 0%,
+    rgba(138, 106, 60, 0.12) 45%,
+    rgba(22, 19, 15, 0) 75%
+  );
 }
 
 @layer components {

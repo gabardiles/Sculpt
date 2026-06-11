@@ -91,7 +91,7 @@ export default function StyleguidePage() {
                 className={`flex h-12 flex-1 items-center justify-center rounded-full border ${
                   done
                     ? "bg-sage/40 border-sage/50 text-sage-deep"
-                    : "bg-white/40 border-white/60 text-ink-soft"
+                    : "bg-surface-soft border-edge text-ink-soft"
                 } ${i === 3 ? "ring-2 ring-blush-deep/60 ring-offset-2 ring-offset-bg" : ""}`}
               >
                 {done ? (

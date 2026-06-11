@@ -41,6 +41,8 @@ export interface WorkoutExercise {
   lastWeight: number | null;
   lastReps: number | null;
   lastSets: number | null;
+  /** Set when the "last" values came from a different phase (fallback). */
+  lastPhase: Phase | null;
   prevCycleWeight: number | null;
 }
 
@@ -253,7 +255,7 @@ export function WorkoutClient({
           {exercises.length} done
         </MonoNumber>
         {/* session progress — fills sage as the work gets done */}
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/60">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface">
           <div
             className="h-full rounded-full bg-sage transition-[width] duration-500"
             style={{ width: `${(doneCount / exercises.length) * 100}%` }}
@@ -276,6 +278,7 @@ export function WorkoutClient({
           const e = entries[ex.exerciseId];
           const isOpen = expanded === ex.exerciseId;
           const trendUp =
+            ex.lastPhase == null &&
             ex.lastWeight != null &&
             ex.prevCycleWeight != null &&
             ex.lastWeight > ex.prevCycleWeight;
@@ -309,7 +312,7 @@ export function WorkoutClient({
                       "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors duration-300",
                       e.done
                         ? "border-sage bg-sage text-white"
-                        : "border-ink/15 bg-white/40 text-transparent"
+                        : "border-ink/15 bg-surface-soft text-transparent"
                     )}
                   >
                     {e.done && (
@@ -344,11 +347,12 @@ export function WorkoutClient({
                       {ex.muscleGroup}
                       {ex.lastWeight != null && (
                         <>
-                          {/* e.g. LAST: 12 kg × 12 × 3 */}
+                          {/* e.g. LAST: 12 kg × 12 × 3 (light wk) */}
                           {" "}· LAST: {formatKg(ex.lastWeight)} {ex.unit}
                           {ex.unit === "kg" && ex.lastReps != null && (
                             <> × {ex.lastReps} × {ex.lastSets ?? ex.sets}</>
                           )}
+                          {ex.lastPhase && <> ({ex.lastPhase} wk)</>}
                           {trendUp && <span className="text-sage-deep"> ↑</span>}
                         </>
                       )}
@@ -377,7 +381,7 @@ export function WorkoutClient({
 
                 {/* expanded logging panel — KG / REP / SET, that's it */}
                 {isOpen && (
-                  <div className="border-t border-white/50 px-5 py-4 animate-fade-up">
+                  <div className="border-t border-edge px-5 py-4 animate-fade-up">
                     <div className="grid grid-cols-3 gap-2">
                       <label className="block">
                         <span className="eyebrow block text-center">
@@ -393,7 +397,7 @@ export function WorkoutClient({
                           onChange={(ev) =>
                             update(ex.exerciseId, { weight: ev.target.value })
                           }
-                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
+                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-surface text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
                         />
                       </label>
                       {ex.unit === "kg" && (
@@ -408,7 +412,7 @@ export function WorkoutClient({
                             onChange={(ev) =>
                               update(ex.exerciseId, { reps: ev.target.value })
                             }
-                            className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
+                            className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-surface text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
                           />
                         </label>
                       )}
@@ -423,7 +427,7 @@ export function WorkoutClient({
                           onChange={(ev) =>
                             update(ex.exerciseId, { sets: ev.target.value })
                           }
-                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-white/70 text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
+                          className="mt-1 h-16 w-full rounded-2xl border border-ink/15 bg-surface text-center font-mono text-2xl font-light outline-none focus:border-blush-deep placeholder:text-ink/30"
                         />
                       </label>
                     </div>
@@ -492,7 +496,7 @@ export function WorkoutClient({
       {doneCount > 0 && (
         <div className="fixed inset-x-0 bottom-24 z-30 px-5">
           {/* frosted wrapper: heavy white + blur so nothing bleeds through */}
-          <div className="mx-auto max-w-md rounded-full bg-white/85 backdrop-blur-2xl shadow-lg shadow-ink/10">
+          <div className="mx-auto max-w-md rounded-full bg-surface-strong backdrop-blur-2xl shadow-lg shadow-ink/10">
             <PillButton
               className="w-full"
               variant={allDone ? "primary" : "ghost"}
@@ -538,7 +542,7 @@ export function WorkoutClient({
                 {videoFor.muscleGroup}
               </MonoNumber>
               {videoFor.equipment && (
-                <MonoNumber className="rounded-full bg-white/60 px-3 py-1 text-[11px] uppercase tracking-wider text-ink-soft">
+                <MonoNumber className="rounded-full bg-surface px-3 py-1 text-[11px] uppercase tracking-wider text-ink-soft">
                   {videoFor.equipment}
                 </MonoNumber>
               )}
@@ -569,7 +573,7 @@ export function WorkoutClient({
                   "flex h-12 w-12 items-center justify-center rounded-full border font-mono text-sm transition-all duration-150",
                   feel === n
                     ? "scale-110 border-blush-deep bg-blush text-ink"
-                    : "border-ink/15 bg-white/50 text-ink-soft"
+                    : "border-ink/15 bg-surface-soft text-ink-soft"
                 )}
               >
                 {n}

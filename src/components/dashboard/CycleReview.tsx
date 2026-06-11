@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowRight, Repeat, Sparkles } from "lucide-react";
+import { ArrowRight, Repeat, SlidersHorizontal, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
-import { swapExercise } from "@/lib/actions";
+import { swapExercise, applyIntake } from "@/lib/actions";
+import {
+  IntakeSliders,
+  INTAKE_DEFAULTS,
+  type IntakeValues,
+} from "@/components/onboarding/IntakeSliders";
 
 export interface CycleReviewData {
   prevCycle: number;
@@ -64,6 +69,10 @@ export function CycleReview({
   const [visible, setVisible] = useState(false);
   const [swappedIds, setSwappedIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [tuneOpen, setTuneOpen] = useState(false);
+  const [tune, setTune] = useState<IntakeValues>(INTAKE_DEFAULTS);
+  const [tuning, setTuning] = useState(false);
+  const [tuneResult, setTuneResult] = useState<string[] | null>(null);
 
   // Dismissal is per-cycle and local — no flash before mount.
   useEffect(() => {
@@ -111,7 +120,7 @@ export function CycleReview({
               return (
                 <li
                   key={s.programExerciseId}
-                  className="rounded-2xl bg-white/60 p-3"
+                  className="rounded-2xl bg-surface p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="min-w-0 flex-1 text-sm">
@@ -151,6 +160,54 @@ export function CycleReview({
           </p>
         </div>
       )}
+
+      {/* tune the next cycle — three sliders, applied once */}
+      <div className="mt-4">
+        {!tuneOpen ? (
+          <button
+            onClick={() => setTuneOpen(true)}
+            className="flex min-h-11 items-center gap-2 text-sm font-light text-ink-soft active:text-ink"
+          >
+            <SlidersHorizontal size={15} strokeWidth={1.5} />
+            Tune the next cycle
+          </button>
+        ) : (
+          <div className="rounded-2xl bg-surface p-4">
+            <IntakeSliders values={tune} onChange={setTune} />
+            {tuneResult == null ? (
+              <PillButton
+                variant="ghost"
+                className="mt-4 w-full"
+                disabled={tuning}
+                onClick={async () => {
+                  setTuning(true);
+                  const res = await applyIntake(tune);
+                  setTuneResult(res.changes);
+                  setTuning(false);
+                }}
+              >
+                {tuning ? "Adjusting…" : "Apply to next cycle"}
+              </PillButton>
+            ) : (
+              <div className="mt-3">
+                {tuneResult.length === 0 ? (
+                  <p className="text-sm font-light text-sage-deep">
+                    No changes needed — the program already matches. ✓
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-1">
+                    {tuneResult.map((c) => (
+                      <li key={c} className="text-sm font-light text-sage-deep">
+                        {c} ✓
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <PillButton className="mt-4 w-full" onClick={dismiss}>
         Start cycle {newCycle}

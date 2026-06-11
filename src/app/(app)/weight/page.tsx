@@ -70,7 +70,7 @@ export default async function WeightPage() {
             required
             placeholder={todayRow ? formatKg(Number(todayRow.weight_kg)) : "62,4"}
             aria-label="Today's weight in kg"
-            className="h-12 w-full flex-1 rounded-full border border-ink/15 bg-white/60 px-5 text-center font-mono text-xl outline-none focus:border-blush-deep"
+            className="h-12 w-full flex-1 rounded-full border border-ink/15 bg-surface px-5 text-center font-mono text-xl outline-none focus:border-blush-deep"
           />
           <PillButton type="submit" className="shrink-0">
             {todayRow ? "Update" : "Log"}

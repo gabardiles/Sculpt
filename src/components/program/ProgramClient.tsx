@@ -16,7 +16,13 @@ import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { Sheet } from "@/components/ui/Sheet";
-import { addExercise, removeExercise, resetCycle, swapExercise } from "@/lib/actions";
+import {
+  addExercise,
+  removeExercise,
+  resetCycle,
+  swapExercise,
+  switchProgram,
+} from "@/lib/actions";
 import { REP_TARGETS, type CycleSummary } from "@/lib/cycle";
 import type { Exercise, Phase } from "@/lib/types";
 import { formatDay, formatRange } from "@/lib/format";
@@ -61,6 +67,9 @@ export function ProgramClient({
   const [addFor, setAddFor] = useState<DayRow | null>(null);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const TEMPLATES = ["Lean & Sculpted", "Strong & Built"];
+  const otherTemplate = TEMPLATES.find((t) => t !== program.name) ?? null;
 
   // The guardrail: only same movement pattern + same primary muscle group.
   // Same training role (rep_profile) comes first — a heavy compound and a
@@ -233,7 +242,7 @@ export function ProgramClient({
                       {/* exercise rows only in the first (light) section to
                           avoid repeating the same list three times */}
                       {(editing || wi === 0) && (
-                        <ul className="border-t border-white/50 px-5 py-2">
+                        <ul className="border-t border-edge px-5 py-2">
                           {day.exercises.map((row) => (
                             <li
                               key={row.programExerciseId}
@@ -309,7 +318,7 @@ export function ProgramClient({
         </section>
       )}
 
-      {/* small menu — manual reset lives here, out of the way */}
+      {/* small menu — manual reset + program switch live here, out of the way */}
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Program">
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm font-light text-ink-soft">
@@ -319,6 +328,29 @@ export function ProgramClient({
           <PillButton variant="ghost" onClick={doReset} disabled={busy}>
             Reset cycle
           </PillButton>
+
+          {otherTemplate && (
+            <>
+              <p className="mt-2 text-sm font-light text-ink-soft">
+                Switching programs archives this one (history kept) and starts
+                fresh at cycle 1.
+              </p>
+              <PillButton
+                variant="ghost"
+                disabled={busy}
+                onClick={async () => {
+                  if (busy) return;
+                  setBusy(true);
+                  await switchProgram(otherTemplate);
+                  setMenuOpen(false);
+                  setBusy(false);
+                }}
+              >
+                <Repeat size={15} strokeWidth={1.5} />
+                Switch to {otherTemplate}
+              </PillButton>
+            </>
+          )}
         </div>
       </Sheet>
 
@@ -392,7 +424,7 @@ export function ProgramClient({
         title={`Add to ${addFor?.name ?? ""}`}
       >
         <div className="pb-2">
-          <div className="flex items-center gap-2 rounded-full border border-ink/10 bg-white/60 px-4">
+          <div className="flex items-center gap-2 rounded-full border border-ink/10 bg-surface px-4">
             <Search size={16} strokeWidth={1.5} className="text-ink-soft" />
             <input
               value={search}

@@ -13,6 +13,7 @@ import {
   SHARE_PROMPT_FALLBACK,
 } from "@/lib/programCopy";
 import { WorkoutClient, type WorkoutExercise } from "@/components/workout/WorkoutClient";
+import type { Phase } from "@/lib/types";
 
 export default async function WorkoutPage({
   params,
@@ -37,20 +38,28 @@ export default async function WorkoutPage({
   const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
 
   // "LAST: 40 kg" — most recent weight in the SAME phase (her hard-week
-  // weight shouldn't show during light week). Trend arrow compares against
-  // the previous cycle, same phase.
+  // weight shouldn't show during light week). First time in a new phase
+  // there's no same-phase history yet, so fall back to the most recent
+  // session from ANY week — labeled, so she knows it came from a
+  // different intensity. Trend arrow compares previous cycle, same phase.
   const exercises: WorkoutExercise[] = day.exercises.map((pe) => {
-    const rows = history
-      .filter(
-        (h) => h.exercise_id === pe.exercise_id && h.workout_log.week_phase === state.phase
-      )
+    const allRows = history
+      .filter((h) => h.exercise_id === pe.exercise_id)
       .sort((a, b) =>
         b.workout_log.completed_at.localeCompare(a.workout_log.completed_at)
       );
-    const last = rows[0] ?? null;
+    const rows = allRows.filter(
+      (h) => h.workout_log.week_phase === state.phase
+    );
+    const last = rows[0] ?? allRows[0] ?? null;
+    const lastIsOtherPhase =
+      last != null && last.workout_log.week_phase !== state.phase;
     const prevCycleRow =
-      rows.find((r) => r.workout_log.cycle_number < (last?.workout_log.cycle_number ?? state.cycle)) ??
-      null;
+      rows.find(
+        (r) =>
+          r.workout_log.cycle_number <
+          (rows[0]?.workout_log.cycle_number ?? state.cycle)
+      ) ?? null;
     return {
       programExerciseId: pe.id,
       exerciseId: pe.exercise_id,
@@ -68,6 +77,9 @@ export default async function WorkoutPage({
       lastWeight: last?.weight_kg ?? null,
       lastReps: last?.reps ?? null,
       lastSets: last?.sets ?? null,
+      lastPhase: lastIsOtherPhase
+        ? (last.workout_log.week_phase as Phase)
+        : null,
       prevCycleWeight: prevCycleRow?.weight_kg ?? null,
     };
   });

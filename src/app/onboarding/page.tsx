@@ -4,6 +4,7 @@ import { completeOnboarding } from "@/lib/actions";
 import { Card } from "@/components/ui/Card";
 import { PillButton } from "@/components/ui/PillButton";
 import { Eyebrow } from "@/components/ui/MonoNumber";
+import { IntakeSliders } from "@/components/onboarding/IntakeSliders";
 
 export default async function OnboardingPage() {
   const { supabase, user } = await requireUser();
@@ -29,19 +30,29 @@ export default async function OnboardingPage() {
         </div>
 
         <Card className="p-6">
-          <form action={completeOnboarding} className="flex flex-col gap-4">
-            <label className="eyebrow" htmlFor="name">
-              Your name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              required
-              autoComplete="given-name"
-              placeholder="Linnea"
-              className="h-12 rounded-full border border-ink/15 bg-white/60 px-5 text-base outline-none focus:border-blush-deep"
-            />
+          <form action={completeOnboarding} className="flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="eyebrow" htmlFor="name">
+                Your name
+              </label>
+              <input
+                id="name"
+                name="name"
+                type="text"
+                required
+                autoComplete="given-name"
+                placeholder="Linnea"
+                className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-base outline-none focus:border-blush-deep"
+              />
+            </div>
+
+            <div>
+              <p className="mb-3 text-sm font-light text-ink-soft">
+                What matters most to you? The program adjusts — gently.
+              </p>
+              <IntakeSliders withFormNames />
+            </div>
+
             <PillButton type="submit">Start the cycle</PillButton>
           </form>
         </Card>

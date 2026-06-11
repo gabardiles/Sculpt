@@ -123,7 +123,7 @@ export function GoalsClient({
                 className={`flex-1 rounded-full border px-2 py-3 text-xs transition-colors ${
                   type === t
                     ? "border-blush-deep bg-blush/40"
-                    : "border-ink/10 bg-white/40 text-ink-soft"
+                    : "border-ink/10 bg-surface-soft text-ink-soft"
                 }`}
               >
                 {TYPE_COPY[t].title}
@@ -136,7 +136,7 @@ export function GoalsClient({
             <select
               name="exercise_id"
               required
-              className="h-12 rounded-full border border-ink/15 bg-white/60 px-4 text-sm outline-none"
+              className="h-12 rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none"
               defaultValue=""
             >
               <option value="" disabled>
@@ -158,7 +158,7 @@ export function GoalsClient({
             required
             placeholder={TYPE_COPY[type].hint}
             aria-label={TYPE_COPY[type].hint}
-            className="h-12 rounded-full border border-ink/15 bg-white/60 px-5 text-center font-mono outline-none focus:border-blush-deep"
+            className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-center font-mono outline-none focus:border-blush-deep"
           />
 
           <label className="flex items-center justify-between gap-3 px-1">
@@ -166,7 +166,7 @@ export function GoalsClient({
             <input
               name="deadline"
               type="date"
-              className="h-12 rounded-full border border-ink/15 bg-white/60 px-4 font-mono text-xs outline-none"
+              className="h-12 rounded-full border border-ink/15 bg-surface px-4 font-mono text-xs outline-none"
             />
           </label>
 

@@ -154,14 +154,14 @@ export function FriendsClient({
           onChange={(e) => setMessage(e.target.value)}
           placeholder="Say something nice…"
           maxLength={200}
-          className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-white/60 px-5 text-sm outline-none focus:border-blush-deep"
+          className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-5 text-sm outline-none focus:border-blush-deep"
         />
         <button
           type="button"
           aria-label="Post a gym photo"
           disabled={posting}
           onClick={() => fileRef.current?.click()}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white/60 text-ink-soft active:bg-ink/5"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-surface text-ink-soft active:bg-ink/5"
         >
           <Camera size={18} strokeWidth={1.5} />
         </button>
@@ -177,7 +177,7 @@ export function FriendsClient({
           type="button"
           aria-label="Friends and invites"
           onClick={() => setManageOpen(true)}
-          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-white/60 text-ink-soft active:bg-ink/5"
+          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-ink/15 bg-surface text-ink-soft active:bg-ink/5"
         >
           <Users size={18} strokeWidth={1.5} />
         </button>
@@ -231,7 +231,7 @@ export function FriendsClient({
               onChange={(e) => setCode(e.target.value.toUpperCase())}
               placeholder="Friend's code"
               maxLength={6}
-              className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-white/60 px-4 text-center font-mono text-sm tracking-[0.2em] uppercase outline-none focus:border-blush-deep"
+              className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-4 text-center font-mono text-sm tracking-[0.2em] uppercase outline-none focus:border-blush-deep"
             />
             <PillButton type="submit" disabled={adding || !code.trim()} className="shrink-0">
               <UserPlus size={16} strokeWidth={1.5} /> Add
