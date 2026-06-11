@@ -11,9 +11,8 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
     title: "Sculpt",
   },
-  icons: {
-    apple: "/apple-touch-icon.png",
-  },
+  // Favicon + apple icon are auto-detected from src/app/icon.png and
+  // src/app/apple-icon.png by the App Router.
 };
 
 export const viewport: Viewport = {
