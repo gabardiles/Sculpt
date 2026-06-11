@@ -344,19 +344,27 @@ export function WorkoutClient({
         })}
       </ul>
 
-      {/* sticky finish bar */}
-      <div className="fixed inset-x-0 bottom-24 z-30 px-5">
-        <div className="mx-auto flex max-w-md flex-col items-center gap-2">
-          {restUntil && (
-            <RestTimer
-              key={restKey}
-              until={restUntil}
-              onDismiss={() => setRestUntil(null)}
-            />
-          )}
-          {doneCount > 0 && (
+      {/* rest timer — sticky tag at the top, out of the way */}
+      {restUntil && (
+        <div className="fixed inset-x-0 top-[max(0.75rem,env(safe-area-inset-top))] z-40 flex justify-center px-5">
+          <RestTimer
+            key={restKey}
+            until={restUntil}
+            onDismiss={() => setRestUntil(null)}
+          />
+        </div>
+      )}
+
+      {/* finish bar */}
+      {doneCount > 0 && (
+        <div className="fixed inset-x-0 bottom-24 z-30 px-5">
+          <div className="mx-auto max-w-md">
             <PillButton
-              className="w-full shadow-lg shadow-ink/10"
+              className={cn(
+                "w-full shadow-lg shadow-ink/10",
+                // opaque even in ghost state so content can't bleed through
+                !allDone && "bg-bg/95 backdrop-blur-xl"
+              )}
               variant={allDone ? "primary" : "ghost"}
               onClick={() => setFeelOpen(true)}
             >
@@ -365,9 +373,9 @@ export function WorkoutClient({
                 {doneCount}/{exercises.length}
               </MonoNumber>
             </PillButton>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* instruction sheet — hidden until wanted */}
       <Sheet

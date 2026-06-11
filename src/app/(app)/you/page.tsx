@@ -1,6 +1,14 @@
 import Link from "next/link";
-import { Camera, ChevronRight, Target, TrendingUp } from "lucide-react";
+import {
+  Camera,
+  ChevronRight,
+  LogOut,
+  Target,
+  TrendingUp,
+  UserPlus,
+} from "lucide-react";
 import { requireUser, getProfile, getGoals } from "@/lib/data";
+import { signOut } from "@/lib/actions";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { formatKg } from "@/lib/format";
@@ -84,6 +92,32 @@ export default async function YouPage() {
           </Link>
         ))}
       </div>
+
+      {/* account */}
+      <section className="mt-10">
+        <Eyebrow>ACCOUNT</Eyebrow>
+        <div className="mt-2 flex flex-col gap-3">
+          {profile?.is_admin && (
+            <Link href="/admin">
+              <Card className="flex items-center gap-4 px-5 py-4 active:scale-[0.99] transition-transform">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-sage/30 text-ink">
+                  <UserPlus size={18} strokeWidth={1.5} />
+                </span>
+                <span className="flex-1 font-normal">Invite someone</span>
+                <ChevronRight size={18} strokeWidth={1.5} className="text-ink-soft" />
+              </Card>
+            </Link>
+          )}
+          <form action={signOut}>
+            <button className="flex min-h-12 w-full items-center gap-4 rounded-card px-5 py-3 text-left text-ink-soft active:bg-ink/5">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/60">
+                <LogOut size={18} strokeWidth={1.5} />
+              </span>
+              <span className="font-light">Sign out</span>
+            </button>
+          </form>
+        </div>
+      </section>
     </main>
   );
 }

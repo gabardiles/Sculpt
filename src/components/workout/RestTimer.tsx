@@ -34,7 +34,7 @@ export function RestTimer({
   return (
     <button
       onClick={onDismiss}
-      className="glass flex min-h-12 items-center gap-2 rounded-full px-5 text-ink-soft active:scale-[0.98] transition-transform"
+      className="flex min-h-12 items-center gap-2 rounded-full px-5 text-ink-soft active:scale-[0.98] transition-transform bg-bg/95 backdrop-blur-xl border border-white/70 shadow-[0_8px_32px_rgba(43,36,34,0.12)]"
       aria-label="Dismiss rest timer"
     >
       <Timer size={16} strokeWidth={1.5} />

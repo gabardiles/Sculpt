@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ChevronRight, Heart, LogOut, TrendingUp, UserPlus } from "lucide-react";
+import { ChevronRight, Heart, TrendingUp } from "lucide-react";
 import {
   requireUser,
   getProfile,
@@ -11,7 +11,6 @@ import {
 } from "@/lib/data";
 import { deriveCycleState, REP_TARGETS, SETS_PER_EXERCISE } from "@/lib/cycle";
 import { formatDay, formatKg, greeting } from "@/lib/format";
-import { signOut } from "@/lib/actions";
 import { computeGoalProgress, goalLabel } from "@/lib/goals";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
@@ -163,35 +162,14 @@ export default async function DashboardPage() {
   return (
     <main className="animate-fade-in">
       {/* header */}
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-light tracking-wide">
-            {greeting(profile.name)}
-          </h1>
-          <MonoNumber className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ink-soft">
-            CYCLE {state.cycle} · WEEK {state.weekIndex} ·{" "}
-            {state.phase.toUpperCase()}
-          </MonoNumber>
-        </div>
-        <div className="flex items-center gap-1">
-          {profile.is_admin && (
-            <Link
-              href="/admin"
-              aria-label="Invite"
-              className="flex h-12 w-12 items-center justify-center rounded-full text-ink-soft active:bg-ink/5"
-            >
-              <UserPlus size={18} strokeWidth={1.5} />
-            </Link>
-          )}
-          <form action={signOut}>
-            <button
-              aria-label="Sign out"
-              className="flex h-12 w-12 items-center justify-center rounded-full text-ink-soft active:bg-ink/5"
-            >
-              <LogOut size={18} strokeWidth={1.5} />
-            </button>
-          </form>
-        </div>
+      <header>
+        <h1 className="text-2xl font-light tracking-wide">
+          {greeting(profile.name)}
+        </h1>
+        <MonoNumber className="mt-1 block text-[11px] uppercase tracking-[0.14em] text-ink-soft">
+          CYCLE {state.cycle} · WEEK {state.weekIndex} ·{" "}
+          {state.phase.toUpperCase()}
+        </MonoNumber>
       </header>
 
       {/* what's next */}
