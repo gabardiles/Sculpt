@@ -66,18 +66,12 @@ export default async function YouPage() {
         ? `${activeGoals} active`
         : "Pick one thing worth chasing",
     },
-    {
-      href: "/you/how-it-works",
-      icon: BookOpen,
-      title: "How Sculpt works",
-      detail: "The cycle, the 3/5 rule, why these exercises",
-    },
-    {
-      href: "/you/install",
-      icon: Smartphone,
-      title: "Install on your phone",
-      detail: "Home-screen app in three taps",
-    },
+  ];
+
+  // Informative pages are quiet links, not feature cards.
+  const learnLinks = [
+    { href: "/you/how-it-works", icon: BookOpen, title: "How Sculpt works" },
+    { href: "/you/install", icon: Smartphone, title: "Install on your phone" },
   ];
 
   return (
@@ -107,8 +101,27 @@ export default async function YouPage() {
         ))}
       </div>
 
+      {/* learn — small links, not cards */}
+      <section className="mt-8">
+        <Eyebrow>LEARN</Eyebrow>
+        <ul className="mt-1">
+          {learnLinks.map(({ href, icon: Icon, title }) => (
+            <li key={href}>
+              <Link
+                href={href}
+                className="flex min-h-11 items-center gap-2.5 py-1 text-sm font-light text-ink-soft active:text-ink"
+              >
+                <Icon size={15} strokeWidth={1.5} />
+                <span className="flex-1">{title}</span>
+                <ChevronRight size={14} strokeWidth={1.5} className="text-ink-soft/60" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       {/* account */}
-      <section className="mt-10">
+      <section className="mt-8">
         <Eyebrow>ACCOUNT</Eyebrow>
         <div className="mt-2 flex flex-col gap-3">
           {profile?.is_admin && (
