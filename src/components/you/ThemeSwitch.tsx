@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { setTheme } from "@/lib/actions";
 import { cn } from "@/lib/cn";
 
@@ -9,10 +9,31 @@ const OPTIONS = [
   { value: "spartan" as const, label: "Spartan" },
 ];
 
-/** Appearance only — switching the look never touches training data. */
+/**
+ * Appearance only — switching the look never touches training data.
+ * The selected state mirrors the theme that's ACTUALLY applied to the
+ * document (kept current by ThemeSync), so it can't go stale when the
+ * router serves a cached page.
+ */
 export function ThemeSwitch({ current }: { current: "sculpt" | "spartan" }) {
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(current);
+
+  useEffect(() => {
+    const read = () =>
+      setActive(
+        document.documentElement.dataset.theme === "spartan"
+          ? "spartan"
+          : "sculpt"
+      );
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => obs.disconnect();
+  }, []);
 
   return (
     <div className="flex gap-2">

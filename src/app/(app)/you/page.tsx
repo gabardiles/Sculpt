@@ -12,12 +12,17 @@ import {
 import { requireUser, getProfile, getGoals } from "@/lib/data";
 import { signOut } from "@/lib/actions";
 import { ThemeSwitch } from "@/components/you/ThemeSwitch";
+import { cookies } from "next/headers";
 import { Card } from "@/components/ui/Card";
 import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { formatKg } from "@/lib/format";
 
 export default async function YouPage() {
   const { supabase, user } = await requireUser();
+
+  // Same source the layout paints from — cookie first, profile as fallback.
+  const cookieStore = await cookies();
+  const rawTheme = cookieStore.get("sculpt-theme")?.value;
 
   const weekAgo = new Date(Date.now() - 7 * 86_400_000)
     .toISOString()
@@ -36,6 +41,11 @@ export default async function YouPage() {
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id),
     ]);
+
+  const cookieTheme: "sculpt" | "spartan" =
+    rawTheme === "spartan" || (!rawTheme && profile?.theme === "spartan")
+      ? "spartan"
+      : "sculpt";
 
   const weights = ((bw ?? []) as { weight_kg: number }[]).map((r) =>
     Number(r.weight_kg)
@@ -125,7 +135,7 @@ export default async function YouPage() {
       <section className="mt-8">
         <Eyebrow>APPEARANCE</Eyebrow>
         <div className="mt-2">
-          <ThemeSwitch current={profile?.theme === "spartan" ? "spartan" : "sculpt"} />
+          <ThemeSwitch current={cookieTheme} />
         </div>
       </section>
 
