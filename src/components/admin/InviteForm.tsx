@@ -78,8 +78,8 @@ export function InviteForm() {
             </p>
             <p className="mt-1.5 text-sm font-light leading-relaxed text-ink-soft">
               {result.emailSent
-                ? "She got the steps by email. You can also send them yourself:"
-                : "No email goes out automatically — send her this:"}
+                ? "She got an email. You can also send the steps yourself:"
+                : "The email didn't go out — send her this instead:"}
             </p>
             <p className="mt-2 whitespace-pre-line rounded-xl bg-surface-soft p-3 text-xs font-light leading-relaxed">
               {inviteText(result.email)}
