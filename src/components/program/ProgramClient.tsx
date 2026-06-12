@@ -26,15 +26,37 @@ import {
   switchProgram,
 } from "@/lib/actions";
 import { REP_TARGETS, type CycleSummary } from "@/lib/cycle";
-import type { Exercise, Phase } from "@/lib/types";
+import { INTENSITY_LABEL, SESSION_LABEL, WEEKDAY_LABEL } from "@/lib/schedule";
+import type { Exercise, Phase, SessionType, WeekIntensity } from "@/lib/types";
 import { formatDay, formatRange } from "@/lib/format";
 import { cn } from "@/lib/cn";
+
+interface ExerciseRow {
+  programExerciseId: string;
+  sort: number;
+  scheme?: string | null;
+  exercise: Exercise;
+}
 
 interface DayRow {
   id: string;
   index: number;
   name: string;
-  exercises: { programExerciseId: string; sort: number; exercise: Exercise }[];
+  exercises: ExerciseRow[];
+}
+
+/** One prescribed week of a fixed-schedule (Hybrid) program. */
+export interface FixedWeekRow {
+  index: number;
+  intensity: WeekIntensity;
+  label: string | null;
+  note: string | null;
+  status: "star" | "check" | "open";
+  days: (DayRow & {
+    sessionType: SessionType;
+    weekday: number | null;
+    doneAt: string | null;
+  })[];
 }
 
 export function ProgramClient({
@@ -48,6 +70,7 @@ export function ProgramClient({
   library,
   hardFeelsLow,
   weekStatus,
+  fixed = null,
 }: {
   program: { id: string; name: string };
   days: DayRow[];
@@ -59,6 +82,11 @@ export function ProgramClient({
   library: Exercise[];
   hardFeelsLow: boolean;
   weekStatus: Record<Phase, "star" | "check" | "open">;
+  fixed?: {
+    weeks: FixedWeekRow[];
+    currentWeekIndex: number;
+    totalWeeks: number;
+  } | null;
 }) {
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -72,16 +100,19 @@ export function ProgramClient({
   const [helpOpen, setHelpOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [confirmSwitch, setConfirmSwitch] = useState(false);
+  const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
+  const [expandedWeek, setExpandedWeek] = useState<number | null>(
+    fixed?.currentWeekIndex ?? null
+  );
 
-  const TEMPLATES = ["Lean & Sculpted", "Strong & Built"];
-  const otherTemplate = TEMPLATES.find((t) => t !== program.name) ?? null;
+  const TEMPLATES = ["Lean & Sculpted", "Strong & Built", "Hybrid Athlete"];
+  const otherTemplates = TEMPLATES.filter((t) => t !== program.name);
 
-  async function doSwitch() {
-    if (!otherTemplate || busy) return;
+  async function doSwitch(template: string) {
+    if (busy) return;
     setBusy(true);
-    await switchProgram(otherTemplate);
-    setConfirmSwitch(false);
+    await switchProgram(template);
+    setConfirmSwitch(null);
     setBusy(false);
   }
 
@@ -157,7 +188,9 @@ export function ProgramClient({
             {program.name}
           </h1>
           <MonoNumber className="mt-1 block text-xs uppercase tracking-[0.14em] text-ink-soft">
-            CYCLE {cycle} · {currentPhase.toUpperCase()} WEEK
+            {fixed
+              ? `WEEK ${fixed.currentWeekIndex} OF ${fixed.totalWeeks}`
+              : `CYCLE ${cycle} · ${currentPhase.toUpperCase()} WEEK`}
           </MonoNumber>
         </div>
         <div className="flex items-center">
@@ -197,7 +230,155 @@ export function ProgramClient({
         </Card>
       )}
 
+      {/* fixed schedule — 20 prescribed weeks, current one expanded */}
+      {fixed && (
+        <div className="mt-6 flex flex-col gap-3">
+          {fixed.weeks.map((week) => {
+            const isCurrent = week.index === fixed.currentWeekIndex;
+            const isOpen = expandedWeek === week.index;
+            return (
+              <section key={week.index}>
+                <button
+                  className="flex w-full items-center justify-between gap-2 min-h-10 py-1"
+                  onClick={() => setExpandedWeek(isOpen ? null : week.index)}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <MonoNumber
+                      className={cn(
+                        "text-xs uppercase tracking-[0.14em]",
+                        isCurrent ? "text-blush-deep" : "text-ink-soft"
+                      )}
+                    >
+                      WEEK {week.index} · {INTENSITY_LABEL[week.intensity]}
+                    </MonoNumber>
+                    {week.label && (
+                      <MonoNumber className="rounded-full bg-blush/30 px-2 py-0.5 text-[10px] uppercase tracking-wider text-blush-deep">
+                        {week.label}
+                      </MonoNumber>
+                    )}
+                    {week.status === "star" && (
+                      <Star
+                        size={14}
+                        strokeWidth={1.8}
+                        className="fill-blush-deep text-blush-deep"
+                        aria-label="Every session done"
+                      />
+                    )}
+                    {week.status === "check" && (
+                      <Check
+                        size={14}
+                        strokeWidth={2.2}
+                        className="text-sage-deep"
+                        aria-label="Week completed"
+                      />
+                    )}
+                  </span>
+                  <MonoNumber className="text-xs text-ink-soft">
+                    {week.days.length} sessions
+                  </MonoNumber>
+                </button>
+
+                {isOpen && (
+                  <div className="mt-1 flex flex-col gap-3">
+                    {week.note && (
+                      <p className="text-sm font-light leading-relaxed text-ink-soft">
+                        {week.note}
+                      </p>
+                    )}
+                    {week.days.map((day) => (
+                      <Card key={day.id} done={!!day.doneAt} className="overflow-hidden">
+                        <Link
+                          href={`/workout/${day.id}`}
+                          className="flex items-center justify-between px-5 py-4 min-h-12"
+                        >
+                          <div>
+                            <Eyebrow>
+                              {day.weekday
+                                ? WEEKDAY_LABEL[day.weekday - 1].toUpperCase()
+                                : `DAY ${day.index}`}{" "}
+                              · {SESSION_LABEL[day.sessionType].toUpperCase()}
+                            </Eyebrow>
+                            <p className="mt-0.5 font-normal">{day.name}</p>
+                          </div>
+                          {day.doneAt ? (
+                            <MonoNumber className="text-xs text-sage-deep">
+                              {formatDay(day.doneAt)}
+                            </MonoNumber>
+                          ) : (
+                            <MonoNumber className="text-xs text-ink-soft">
+                              {day.exercises.length > 0
+                                ? `${day.exercises.length} exercises`
+                                : "written session"}
+                            </MonoNumber>
+                          )}
+                        </Link>
+
+                        {day.exercises.length > 0 && (
+                          <ul className="border-t border-edge px-5 py-2">
+                            {day.exercises.map((row) => (
+                              <li
+                                key={row.programExerciseId}
+                                className="flex items-center justify-between gap-2 py-1.5"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-light">
+                                    {row.exercise.name}
+                                  </span>
+                                  {row.scheme && (
+                                    <MonoNumber className="block truncate text-[11px] text-ink-soft/80">
+                                      {row.scheme}
+                                    </MonoNumber>
+                                  )}
+                                </span>
+                                {editing && (
+                                  <span className="flex items-center">
+                                    <button
+                                      aria-label={`Swap ${row.exercise.name}`}
+                                      onClick={() =>
+                                        setSwapFor({
+                                          programExerciseId: row.programExerciseId,
+                                          exercise: row.exercise,
+                                        })
+                                      }
+                                      className="flex h-10 w-10 items-center justify-center rounded-full text-blush-deep active:bg-blush/20"
+                                    >
+                                      <Repeat size={16} strokeWidth={1.5} />
+                                    </button>
+                                    <button
+                                      aria-label={`Remove ${row.exercise.name}`}
+                                      onClick={() => removeExercise(row.programExerciseId)}
+                                      className="flex h-10 w-10 items-center justify-center rounded-full text-ink-soft/80 active:bg-ink/5"
+                                    >
+                                      <Trash2 size={15} strokeWidth={1.5} />
+                                    </button>
+                                  </span>
+                                )}
+                              </li>
+                            ))}
+                            {editing && (
+                              <li className="py-1.5">
+                                <button
+                                  onClick={() => setAddFor(day)}
+                                  className="flex min-h-10 items-center gap-2 text-sm text-blush-deep"
+                                >
+                                  <Plus size={16} strokeWidth={1.5} /> Add exercise
+                                </button>
+                              </li>
+                            )}
+                          </ul>
+                        )}
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+
       {/* the 3-week cycle, stacked */}
+      {!fixed && (
       <div className="mt-6 flex flex-col gap-8">
         {phases.map((phase, wi) => {
           const stamps = doneStamps[phase];
@@ -320,6 +501,7 @@ export function ProgramClient({
           );
         })}
       </div>
+      )}
 
       {/* cycle history */}
       {summaries.length > 0 && (
@@ -340,66 +522,77 @@ export function ProgramClient({
       )}
 
       {/* switch program — visible, small, with an honest warning */}
-      {otherTemplate && (
-        <section className="mt-8">
-          <Card className="flex items-center gap-3 px-4 py-3">
-            <Repeat
-              size={16}
-              strokeWidth={1.5}
-              className="shrink-0 text-ink-soft"
-            />
-            <span className="min-w-0 flex-1 text-xs font-light leading-snug text-ink-soft">
-              {confirmSwitch ? (
-                <>
-                  Replace <span className="font-medium">{program.name}</span>{" "}
-                  with {otherTemplate}? Your history is kept, but the new
-                  program starts at cycle 1.
-                </>
-              ) : (
-                <>
-                  Prefer {otherTemplate}? Switching replaces your current
-                  program — history stays.
-                </>
-              )}
-            </span>
-            {confirmSwitch ? (
-              <span className="flex shrink-0 items-center gap-1.5">
-                <button
-                  disabled={busy}
-                  onClick={doSwitch}
-                  className="rounded-full bg-blush px-3 py-2 text-xs font-medium text-on-accent disabled:opacity-40"
-                >
-                  {busy ? "…" : "Yes, switch"}
-                </button>
-                <button
-                  onClick={() => setConfirmSwitch(false)}
-                  className="rounded-full px-2 py-2 text-xs font-light text-ink-soft"
-                >
-                  Cancel
-                </button>
+      {otherTemplates.length > 0 && (
+        <section className="mt-8 flex flex-col gap-2">
+          {otherTemplates.map((template) => (
+            <Card key={template} className="flex items-center gap-3 px-4 py-3">
+              <Repeat
+                size={16}
+                strokeWidth={1.5}
+                className="shrink-0 text-ink-soft"
+              />
+              <span className="min-w-0 flex-1 text-xs font-light leading-snug text-ink-soft">
+                {confirmSwitch === template ? (
+                  <>
+                    Replace <span className="font-medium">{program.name}</span>{" "}
+                    with {template}? Your history is kept, but the new program
+                    starts from the beginning.
+                  </>
+                ) : (
+                  <>
+                    Prefer {template}? Switching replaces your current program
+                    — history stays.
+                  </>
+                )}
               </span>
-            ) : (
-              <button
-                onClick={() => setConfirmSwitch(true)}
-                className="shrink-0 rounded-full border border-ink/15 bg-surface-soft px-3 py-2 text-xs text-ink-soft active:bg-ink/5"
-              >
-                Switch
-              </button>
-            )}
-          </Card>
+              {confirmSwitch === template ? (
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    disabled={busy}
+                    onClick={() => doSwitch(template)}
+                    className="rounded-full bg-blush px-3 py-2 text-xs font-medium text-on-accent disabled:opacity-40"
+                  >
+                    {busy ? "…" : "Yes, switch"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmSwitch(null)}
+                    className="rounded-full px-2 py-2 text-xs font-light text-ink-soft"
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => setConfirmSwitch(template)}
+                  className="shrink-0 rounded-full border border-ink/15 bg-surface-soft px-3 py-2 text-xs text-ink-soft active:bg-ink/5"
+                >
+                  Switch
+                </button>
+              )}
+            </Card>
+          ))}
         </section>
       )}
 
       {/* small menu — manual reset lives here, out of the way */}
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Program">
         <div className="flex flex-col gap-3 pb-2">
-          <p className="text-sm font-light text-ink-soft">
-            Resetting starts cycle {cycle + 1} at a light week. Logged history
-            stays.
-          </p>
-          <PillButton variant="ghost" onClick={doReset} disabled={busy}>
-            Reset cycle
-          </PillButton>
+          {fixed ? (
+            <p className="text-sm font-light text-ink-soft">
+              This program runs on a fixed 20-week schedule — there is no
+              cycle to reset. To start over, switch programs and back.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm font-light text-ink-soft">
+                Resetting starts cycle {cycle + 1} at a light week. Logged
+                history stays.
+              </p>
+              <PillButton variant="ghost" onClick={doReset} disabled={busy}>
+                Reset cycle
+              </PillButton>
+            </>
+          )}
         </div>
       </Sheet>
 

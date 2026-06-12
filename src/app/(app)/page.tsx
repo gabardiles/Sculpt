@@ -11,6 +11,13 @@ import {
   getWeekClosures,
 } from "@/lib/data";
 import { deriveCycleState, REP_TARGETS, SETS_PER_EXERCISE } from "@/lib/cycle";
+import {
+  deriveScheduleState,
+  INTENSITY_LABEL,
+  SESSION_LABEL,
+  WEEKDAY_LABEL,
+  type ScheduleWeek,
+} from "@/lib/schedule";
 import { formatDay, formatKg, greeting } from "@/lib/format";
 import { computeGoalProgress, goalLabel } from "@/lib/goals";
 import { Card } from "@/components/ui/Card";
@@ -52,13 +59,43 @@ export default async function DashboardPage() {
       supabase.from("friends").select("friend_id").eq("user_id", user.id),
     ]);
 
+  const fixed = program.schedule_mode === "fixed";
+
+  // Fixed-schedule (Hybrid Athlete): the week list IS the program. The cycle
+  // engine still runs for cycle programs; for fixed ones it's ignored.
+  const scheduleWeeks: ScheduleWeek[] = fixed
+    ? program.week_plan.map((w) => ({
+        week_index: w.week_index,
+        intensity: w.intensity,
+        label: w.label,
+        note: w.note,
+        dayIds: program.days
+          .filter((d) => d.week_index === w.week_index)
+          .map((d) => d.id),
+      }))
+    : [];
+  const fixedState = fixed
+    ? deriveScheduleState(scheduleWeeks, logs, closures)
+    : null;
+  const fixedWeek = fixedState
+    ? program.week_plan.find((w) => w.week_index === fixedState.weekIndex) ?? null
+    : null;
+  const fixedWeekDays = fixedState
+    ? program.days.filter((d) => d.week_index === fixedState.weekIndex)
+    : [];
+
   const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
-  const nextDay = program.days.find((d) => d.id === state.nextDayId);
+  const nextDay = program.days.find((d) =>
+    fixedState ? d.id === fixedState.nextDayId : d.id === state.nextDayId
+  );
 
   // Completion date per day in the current week, for the day list.
   const doneAtByDay = new Map<string, string>();
   for (const l of logs) {
-    if (l.cycle_number === state.cycle && l.week_phase === state.phase) {
+    if (
+      fixed ||
+      (l.cycle_number === state.cycle && l.week_phase === state.phase)
+    ) {
       doneAtByDay.set(l.program_day_id, l.completed_at);
     }
   }
@@ -110,7 +147,7 @@ export default async function DashboardPage() {
   // 1–2 pump-tier accessories — never the compounds. Boredom is a real
   // programming variable; progression on the big lifts is sacred.
   let review: CycleReviewData | null = null;
-  if (state.cycleJustCompleted && state.cycle > 1) {
+  if (!fixed && state.cycleJustCompleted && state.cycle > 1) {
     const prev = state.cycle - 1;
     const prevLogs = logs.filter((l) => l.cycle_number === prev);
     const prevFeels = prevLogs
@@ -321,10 +358,25 @@ export default async function DashboardPage() {
           {greeting(profile.name)}
         </h1>
         <MonoNumber className="mt-1 block text-xs uppercase tracking-[0.14em] text-ink-soft">
-          CYCLE {state.cycle} · WEEK {state.weekIndex} ·{" "}
-          {state.phase.toUpperCase()}
+          {fixedState
+            ? `WEEK ${fixedState.weekIndex} OF ${fixedState.totalWeeks} · ${INTENSITY_LABEL[fixedState.intensity]}`
+            : `CYCLE ${state.cycle} · WEEK ${state.weekIndex} · ${state.phase.toUpperCase()}`}
         </MonoNumber>
       </header>
+
+      {/* the coach's word on this week — block weeks, tapers, test weeks */}
+      {fixedWeek && (fixedWeek.label || fixedWeek.note) && (
+        <Card className="mt-4 px-4 py-3">
+          {fixedWeek.label && (
+            <Eyebrow className="text-blush-deep">{fixedWeek.label}</Eyebrow>
+          )}
+          {fixedWeek.note && (
+            <p className="mt-1 text-sm font-light leading-relaxed text-ink-soft">
+              {fixedWeek.note}
+            </p>
+          )}
+        </Card>
+      )}
 
       {/* cycle complete — review, feel check, accessory refresh */}
       {review && (
@@ -347,7 +399,10 @@ export default async function DashboardPage() {
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-6">
                 <Eyebrow className="text-white/75">
-                  NEXT UP · DAY {nextDay.day_index}
+                  NEXT UP ·{" "}
+                  {fixed
+                    ? `${nextDay.weekday ? WEEKDAY_LABEL[nextDay.weekday - 1].toUpperCase() : ""} · ${SESSION_LABEL[nextDay.session_type].toUpperCase()}`
+                    : `DAY ${nextDay.day_index}`}
                 </Eyebrow>
                 <div className="mt-1 flex items-center justify-between gap-3">
                   <h2 className="text-4xl font-light leading-tight tracking-wide text-white">
@@ -358,17 +413,24 @@ export default async function DashboardPage() {
                   </span>
                 </div>
                 <MonoNumber className="mt-2 block text-xs text-white/80">
-                  {nextDay.exercises.length} exercises ·{" "}
-                  {REP_TARGETS.strength[state.phase]} reps · 3 sets
+                  {fixed
+                    ? nextDay.exercises.length > 0
+                      ? `${nextDay.exercises.length} exercises · coach's prescription`
+                      : "Written session — open for the full plan"
+                    : `${nextDay.exercises.length} exercises · ${REP_TARGETS.strength[state.phase]} reps · 3 sets`}
                 </MonoNumber>
               </div>
             </Card>
           </Link>
         ) : (
           <Card className="p-6 text-center">
-            <p className="font-light text-lg">Week complete</p>
+            <p className="font-light text-lg">
+              {fixedState?.programComplete ? "Program complete" : "Week complete"}
+            </p>
             <p className="mt-1 text-sm text-ink-soft">
-              Everything done. Rest is part of the work.
+              {fixedState?.programComplete
+                ? "All 20 weeks of work, written down. Time to retest and go again."
+                : "Everything done. Rest is part of the work."}
             </p>
           </Card>
         )}
@@ -377,28 +439,45 @@ export default async function DashboardPage() {
       {/* the week — thin rows with names, tappable in any order */}
       <section className="mt-5">
         <DayList
-          days={program.days
+          days={(fixedState ? fixedWeekDays : program.days)
             // The hero card already shows the next day — don't list it twice.
-            .filter((d) => d.id !== state.nextDayId)
+            .filter((d) => d.id !== (fixedState ? fixedState.nextDayId : state.nextDayId))
             .map((d) => ({
               id: d.id,
               index: d.day_index,
-              name: d.name,
-              done: state.doneDayIds.has(d.id),
+              name: fixed
+                ? `${d.weekday ? WEEKDAY_LABEL[d.weekday - 1] : ""} · ${d.name}`
+                : d.name,
+              done: (fixedState ? fixedState.doneDayIds : state.doneDayIds).has(d.id),
               doneAt: doneAtByDay.get(d.id) ?? null,
               isNext: false,
             }))}
         />
-        {state.weekClosable && (
-          <CloseWeekButton
-            cycle={state.cycle}
-            phase={state.phase}
-            doneCount={state.doneDayIds.size}
-            skippedNames={program.days
-              .filter((d) => !state.doneDayIds.has(d.id))
-              .map((d) => d.name)}
-          />
-        )}
+        {fixedState
+          ? fixedState.weekClosable && (
+              <CloseWeekButton
+                cycle={fixedState.weekIndex}
+                phase={fixedState.intensity}
+                doneCount={
+                  fixedWeekDays.filter((d) => fixedState.doneDayIds.has(d.id))
+                    .length
+                }
+                totalCount={fixedWeekDays.length}
+                skippedNames={fixedWeekDays
+                  .filter((d) => !fixedState.doneDayIds.has(d.id))
+                  .map((d) => d.name)}
+              />
+            )
+          : state.weekClosable && (
+              <CloseWeekButton
+                cycle={state.cycle}
+                phase={state.phase}
+                doneCount={state.doneDayIds.size}
+                skippedNames={program.days
+                  .filter((d) => !state.doneDayIds.has(d.id))
+                  .map((d) => d.name)}
+              />
+            )}
       </section>
 
       {/* this week's numbers */}

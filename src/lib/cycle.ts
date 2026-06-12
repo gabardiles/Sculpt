@@ -1,4 +1,4 @@
-import type { MovementPattern, Phase, RepProfile } from "./types";
+import type { MovementPattern, Phase, RepProfile, WeekIntensity } from "./types";
 
 export const PHASES: Phase[] = ["light", "medium", "hard"];
 
@@ -63,7 +63,8 @@ export const WEEK_MIN_SESSIONS = 3;
 
 export interface CycleLogRow {
   program_day_id: string;
-  week_phase: Phase;
+  /** Fixed-schedule logs may carry 'test' — cycle programs never do. */
+  week_phase: WeekIntensity;
   cycle_number: number;
   completed_at: string;
   feel_rating: number | null;
@@ -71,7 +72,7 @@ export interface CycleLogRow {
 
 export interface WeekClosure {
   cycle_number: number;
-  week_phase: Phase;
+  week_phase: WeekIntensity;
 }
 
 export interface CycleState {
