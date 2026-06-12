@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import type { Phase } from "@/lib/types";
+import type { WeekIntensity } from "@/lib/types";
 
 async function requireUserId() {
   const supabase = await createClient();
@@ -18,7 +18,11 @@ async function requireUserId() {
 
 type Supa = Awaited<ReturnType<typeof createClient>>;
 
-const TEMPLATE_NAMES = ["Lean & Sculpted", "Strong & Built"] as const;
+const TEMPLATE_NAMES = [
+  "Lean & Sculpted",
+  "Strong & Built",
+  "Hybrid Athlete",
+] as const;
 
 async function cloneTemplateProgram(
   supabase: Supa,
@@ -27,7 +31,7 @@ async function cloneTemplateProgram(
 ): Promise<boolean> {
   const { data: template } = await supabase
     .from("programs")
-    .select("*, program_days(*, program_exercises(*))")
+    .select("*, program_weeks(*), program_days(*, program_exercises(*))")
     .is("user_id", null)
     .eq("name", templateName)
     .limit(1)
@@ -42,15 +46,44 @@ async function cloneTemplateProgram(
       weeks: template.weeks,
       days_per_week: template.days_per_week,
       active: true,
+      schedule_mode: template.schedule_mode ?? "cycle",
     })
     .select("id")
     .single();
   if (!program) return false;
 
+  type TemplateWeek = {
+    week_index: number;
+    intensity: string;
+    label: string | null;
+    note: string | null;
+  };
+  const weeks = (template.program_weeks ?? []) as TemplateWeek[];
+  if (weeks.length) {
+    await supabase.from("program_weeks").insert(
+      weeks.map((w) => ({
+        program_id: program.id,
+        week_index: w.week_index,
+        intensity: w.intensity,
+        label: w.label,
+        note: w.note,
+      }))
+    );
+  }
+
   type TemplateDay = {
     day_index: number;
     name: string;
-    program_exercises: { exercise_id: string; sort: number; sets: number }[];
+    week_index: number | null;
+    weekday: number | null;
+    session_type: string;
+    content: string | null;
+    program_exercises: {
+      exercise_id: string;
+      sort: number;
+      sets: number;
+      scheme: string | null;
+    }[];
   };
   for (const day of (template.program_days ?? []) as TemplateDay[]) {
     const { data: newDay } = await supabase
@@ -59,6 +92,10 @@ async function cloneTemplateProgram(
         program_id: program.id,
         day_index: day.day_index,
         name: day.name,
+        week_index: day.week_index,
+        weekday: day.weekday,
+        session_type: day.session_type ?? "strength",
+        content: day.content,
       })
       .select("id")
       .single();
@@ -69,6 +106,7 @@ async function cloneTemplateProgram(
           exercise_id: pe.exercise_id,
           sort: pe.sort,
           sets: pe.sets,
+          scheme: pe.scheme,
         }))
       );
     }
@@ -265,7 +303,7 @@ export interface WorkoutEntry {
 
 export async function completeWorkout(input: {
   programDayId: string;
-  phase: Phase;
+  phase: WeekIntensity;
   cycle: number;
   feel: number;
   entries: WorkoutEntry[];
@@ -470,8 +508,9 @@ export async function deleteComment(commentId: string) {
 
 // ---------------------------------------------------------------- program
 
-/** Close the current week from 3/5 sessions — checkbox week, on to the next. */
-export async function closeWeek(cycle: number, phase: Phase) {
+/** Close the current week from 3/5 sessions — checkbox week, on to the next.
+ *  Fixed-schedule programs pass week_index as cycle, intensity as phase. */
+export async function closeWeek(cycle: number, phase: WeekIntensity) {
   const { supabase, userId } = await requireUserId();
   await supabase
     .from("week_closures")

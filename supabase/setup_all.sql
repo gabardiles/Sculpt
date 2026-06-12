@@ -105,12 +105,40 @@ create table if not exists public.programs (
 
 alter table public.programs add column if not exists intake jsonb;
 
+-- Fixed-schedule programs (Hybrid Athlete): 20 distinct prescribed weeks
+-- instead of a repeating 3-week cycle. 'cycle' keeps the original engine.
+alter table public.programs
+  add column if not exists schedule_mode text not null default 'cycle'
+  check (schedule_mode in ('cycle','fixed'));
+
+-- One row per prescribed week of a fixed-schedule program. Intensity reuses
+-- the phase vocabulary ('hard' renders as HEAVY); 'test' weeks log maxes.
+create table if not exists public.program_weeks (
+  id uuid primary key default gen_random_uuid(),
+  program_id uuid not null references public.programs (id) on delete cascade,
+  week_index int not null,
+  intensity text not null check (intensity in ('light','medium','hard','test')),
+  label text,
+  note text,
+  unique (program_id, week_index)
+);
+
 create table if not exists public.program_days (
   id uuid primary key default gen_random_uuid(),
   program_id uuid not null references public.programs (id) on delete cascade,
   day_index int not null,
   name text not null
 );
+
+-- Fixed-schedule columns: which week the day belongs to, where it sits on
+-- the calendar (1 = Monday), what kind of session it is, and the written
+-- session body (warmup, WOD, heart-rate zones) that has no set/rep rows.
+alter table public.program_days add column if not exists week_index int;
+alter table public.program_days add column if not exists weekday int;
+alter table public.program_days
+  add column if not exists session_type text not null default 'strength'
+  check (session_type in ('strength','crossfit','conditioning'));
+alter table public.program_days add column if not exists content text;
 
 create table if not exists public.program_exercises (
   id uuid primary key default gen_random_uuid(),
@@ -119,6 +147,10 @@ create table if not exists public.program_exercises (
   sort int not null default 0,
   sets int not null default 3
 );
+
+-- Coach prescription shown verbatim (e.g. '70–80% · 5 reps × 5 set').
+-- When set it replaces the derived phase rep target in the workout UI.
+alter table public.program_exercises add column if not exists scheme text;
 
 create table if not exists public.workout_logs (
   id uuid primary key default gen_random_uuid(),
@@ -129,6 +161,11 @@ create table if not exists public.workout_logs (
   completed_at timestamptz not null default now(),
   feel_rating int check (feel_rating between 1 and 5)
 );
+
+-- Test weeks (fixed-schedule programs) log under their own phase.
+alter table public.workout_logs drop constraint if exists workout_logs_week_phase_check;
+alter table public.workout_logs add constraint workout_logs_week_phase_check
+  check (week_phase in ('light','medium','hard','test'));
 
 create table if not exists public.set_logs (
   id uuid primary key default gen_random_uuid(),
@@ -222,6 +259,11 @@ create table if not exists public.week_closures (
   unique (user_id, cycle_number, week_phase)
 );
 
+-- Fixed-schedule closures store week_index in cycle_number; allow 'test'.
+alter table public.week_closures drop constraint if exists week_closures_week_phase_check;
+alter table public.week_closures add constraint week_closures_week_phase_check
+  check (week_phase in ('light','medium','hard','test'));
+
 -- --------------------------------------------------------------- functions
 create or replace function public.add_friend(code text)
 returns jsonb
@@ -308,6 +350,21 @@ create policy "programs insert own" on public.programs
 drop policy if exists "programs update own" on public.programs;
 create policy "programs update own" on public.programs
   for update using (user_id = auth.uid());
+
+alter table public.program_weeks enable row level security;
+drop policy if exists "program_weeks read" on public.program_weeks;
+create policy "program_weeks read" on public.program_weeks
+  for select using (exists (
+    select 1 from public.programs p
+    where p.id = program_id and (p.user_id = auth.uid() or p.user_id is null)));
+drop policy if exists "program_weeks write" on public.program_weeks;
+create policy "program_weeks write" on public.program_weeks
+  for all using (exists (
+    select 1 from public.programs p
+    where p.id = program_id and p.user_id = auth.uid()))
+  with check (exists (
+    select 1 from public.programs p
+    where p.id = program_id and p.user_id = auth.uid()));
 
 drop policy if exists "program_days read" on public.program_days;
 create policy "program_days read" on public.program_days
@@ -471,6 +528,7 @@ create index if not exists workout_logs_user_cycle on public.workout_logs (user_
 create index if not exists set_logs_exercise on public.set_logs (exercise_id);
 create index if not exists body_weight_user_date on public.body_weight (user_id, date desc);
 create index if not exists exercises_swap on public.exercises (movement_pattern, muscle_group) where is_global;
+create index if not exists program_days_week on public.program_days (program_id, week_index, day_index);
 create index if not exists feed_posts_user_created on public.feed_posts (user_id, created_at desc);
 create index if not exists feed_cheers_post on public.feed_cheers (post_id);
 
@@ -645,6 +703,18 @@ update public.exercises set rep_profile = 'pump' where unit = 'kg' and rep_profi
   'Weighted Decline Sit-Up','Calf Raises','Seated Calf Raise','Smith Machine Calf Raise',
   'Leg Press Calf Raise'
 );
+
+-- Hybrid Athlete additions — the coach's barbell and engine-adjacent lifts,
+-- tagged so the same-pattern/same-muscle swap guardrail covers them.
+insert into public.exercises (name, short_label, muscle_group, movement_pattern, equipment, unit, rep_profile, cue, is_global) values
+('Strict Pull-Up', null, 'back', 'pull', 'pull-up bar', 'kg', 'strength', 'Dead hang to chin over the bar, zero kick. Loop a band over the bar and under your feet until strict reps are yours — log the band or added weight.', true),
+('Seal Row', null, 'back', 'pull', 'barbell', 'kg', 'strength', 'Chest down on a high bench, bar hanging below. Pull to the bench, pause — zero body english.', true),
+('Push Press', null, 'shoulders', 'push', 'barbell', 'kg', 'strength', 'Shallow dip, hard leg drive, punch the bar overhead. The legs start it, the shoulders finish it.', true),
+('Barbell Curl', null, 'arms', 'pull', 'barbell', 'kg', 'pump', 'Elbows pinned to your sides. Curl strict, lower slow — the bar does not swing.', true),
+('Leg Extension', null, 'quads', 'accessory', 'machine', 'kg', 'pump', 'Shins behind the pad, full extension with a squeeze at the top. Lower with control.', true),
+('GHD Sit-Up', null, 'core', 'core', 'ghd', 'kg', 'pump', 'Touch the floor behind you, snap back up. Half reps until your midline owns the full range.', true),
+('Farmers Walk', null, 'core', 'accessory', 'kettlebells', 'kg', 'strength', 'Heavy in each hand, tall posture, quick small steps. The walk ends when your grip does — log the weight per hand.', true)
+on conflict (name) where is_global do nothing;
 
 -- ------------------------------------------------ template program (once)
 with prog as (

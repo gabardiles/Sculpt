@@ -20,7 +20,8 @@ import {
   repDefault,
   repTarget,
 } from "@/lib/cycle";
-import type { MovementPattern, Phase, RepProfile } from "@/lib/types";
+import { intensityToPhase } from "@/lib/schedule";
+import type { MovementPattern, Phase, RepProfile, WeekIntensity } from "@/lib/types";
 import { formatKg } from "@/lib/format";
 import { cn } from "@/lib/cn";
 
@@ -38,12 +39,23 @@ export interface WorkoutExercise {
   instructionUrl: string | null;
   imageUrl: string | null;
   sets: number;
+  /** Coach prescription shown verbatim — replaces the derived rep target. */
+  scheme: string | null;
   lastWeight: number | null;
   lastReps: number | null;
   lastSets: number | null;
   /** Set when the "last" values came from a different phase (fallback). */
   lastPhase: Phase | null;
   prevCycleWeight: number | null;
+}
+
+/** Fixed-schedule context — present only for Hybrid-style programs. */
+export interface FixedDayInfo {
+  totalWeeks: number;
+  intensityLabel: string; // LIGHT / MEDIUM / HEAVY / TEST
+  sessionLabel: string; // Strength / CrossFit / Conditioning
+  /** Written session: warmup, WOD, heart-rate zones. */
+  content: string | null;
 }
 
 interface EntryState {
@@ -63,9 +75,10 @@ export function WorkoutClient({
   rationale,
   sharePrompt,
   userId,
+  fixed = null,
 }: {
   day: { id: string; name: string; index: number };
-  phase: Phase;
+  phase: WeekIntensity;
   cycle: number;
   weekIndex: number;
   exercises: WorkoutExercise[];
@@ -73,8 +86,11 @@ export function WorkoutClient({
   rationale: string | null;
   sharePrompt: string;
   userId: string;
+  fixed?: FixedDayInfo | null;
 }) {
   const router = useRouter();
+  // Rep targets and rest timers key off the 3-phase wave — test trains heavy.
+  const repPhase = intensityToPhase(phase);
   const [entries, setEntries] = useState<Record<string, EntryState>>(() =>
     Object.fromEntries(
       exercises.map((ex) => [
@@ -86,13 +102,19 @@ export function WorkoutClient({
             ex.lastWeight != null
               ? String(ex.lastWeight)
               : ex.unit === "s"
-                ? String(REP_DEFAULT.timed[phase])
+                ? String(REP_DEFAULT.timed[repPhase])
                 : "",
-          reps: String(
-            ex.unit === "s"
-              ? ""
-              : repDefault(ex.repProfile, ex.movementPattern, phase)
-          ),
+          // Prescribed schemes carry their own reps — prefill from history
+          // instead of the phase wave.
+          reps: ex.scheme
+            ? ex.lastReps != null
+              ? String(ex.lastReps)
+              : ""
+            : String(
+                ex.unit === "s"
+                  ? ""
+                  : repDefault(ex.repProfile, ex.movementPattern, repPhase)
+              ),
           sets: String(ex.lastSets ?? ex.sets),
           done: false,
         },
@@ -145,7 +167,7 @@ export function WorkoutClient({
       }, 200);
     }
     if (!isLast) {
-      setRestUntil(Date.now() + REST_SECONDS[phase] * 1000);
+      setRestUntil(Date.now() + REST_SECONDS[repPhase] * 1000);
       setRestKey((k) => k + 1);
     }
   }
@@ -236,12 +258,16 @@ export function WorkoutClient({
             <ArrowLeft size={20} strokeWidth={1.8} />
           </Link>
           <MonoNumber className="rounded-full bg-black/35 px-3 py-1.5 text-xs uppercase tracking-[0.14em] text-white backdrop-blur-sm">
-            CYCLE {cycle} · WEEK {weekIndex} · {phase.toUpperCase()}
+            {fixed
+              ? `WEEK ${cycle}/${fixed.totalWeeks} · ${fixed.intensityLabel}`
+              : `CYCLE ${cycle} · WEEK ${weekIndex} · ${phase.toUpperCase()}`}
           </MonoNumber>
         </div>
         <div className="absolute inset-x-0 bottom-0 p-5">
           <Eyebrow className="text-white/75">
-            DAY {day.index} · {phase.toUpperCase()} WEEK
+            {fixed
+              ? `${fixed.sessionLabel.toUpperCase()} · ${fixed.intensityLabel} WEEK`
+              : `DAY ${day.index} · ${phase.toUpperCase()} WEEK`}
           </Eyebrow>
           <h1 className="mt-1 text-4xl font-light tracking-wide text-white">
             {day.name}
@@ -250,17 +276,27 @@ export function WorkoutClient({
       </div>
 
       <div className="mt-3">
-        <MonoNumber className="block text-xs text-ink-soft">
-          {REP_TARGETS.strength[phase]} reps · 3 sets · {doneCount}/
-          {exercises.length} done
-        </MonoNumber>
-        {/* session progress — fills sage as the work gets done */}
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface">
-          <div
-            className="h-full rounded-full bg-sage transition-[width] duration-500"
-            style={{ width: `${(doneCount / exercises.length) * 100}%` }}
-          />
-        </div>
+        {exercises.length > 0 ? (
+          <>
+            <MonoNumber className="block text-xs text-ink-soft">
+              {fixed
+                ? `${exercises.length} exercises · coach's prescription`
+                : `${REP_TARGETS.strength[repPhase]} reps · 3 sets`}{" "}
+              · {doneCount}/{exercises.length} done
+            </MonoNumber>
+            {/* session progress — fills sage as the work gets done */}
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-surface">
+              <div
+                className="h-full rounded-full bg-sage transition-[width] duration-500"
+                style={{ width: `${(doneCount / exercises.length) * 100}%` }}
+              />
+            </div>
+          </>
+        ) : (
+          <MonoNumber className="block text-xs text-ink-soft">
+            Follow the session below, then finish to log it.
+          </MonoNumber>
+        )}
         {rationale && (
           <p className="mt-3 text-sm font-light leading-relaxed text-ink-soft">
             {rationale}
@@ -272,6 +308,15 @@ export function WorkoutClient({
           </p>
         )}
       </div>
+
+      {/* the written session — warmup, WOD, zones — straight from the coach */}
+      {fixed?.content && (
+        <Card className="mt-5 px-5 py-4">
+          <p className="whitespace-pre-line text-sm font-light leading-relaxed text-ink">
+            {fixed.content}
+          </p>
+        </Card>
+      )}
 
       <ul className="mt-6 flex flex-col gap-3">
         {exercises.map((ex) => {
@@ -432,16 +477,24 @@ export function WorkoutClient({
                       </label>
                     </div>
 
-                    <MonoNumber className="mt-2 block text-center text-xs text-ink-soft/80">
-                      target {repTarget(ex.repProfile, ex.movementPattern, phase)}
-                      {ex.unit === "s" ? " hold" : " reps"}
-                    </MonoNumber>
+                    {ex.scheme ? (
+                      <MonoNumber className="mt-2 block text-center text-xs text-ink-soft/80">
+                        {ex.scheme}
+                      </MonoNumber>
+                    ) : (
+                      <MonoNumber className="mt-2 block text-center text-xs text-ink-soft/80">
+                        target{" "}
+                        {repTarget(ex.repProfile, ex.movementPattern, repPhase)}
+                        {ex.unit === "s" ? " hold" : " reps"}
+                      </MonoNumber>
+                    )}
                     {/* double progression: top of range last time → go up */}
-                    {ex.unit === "kg" &&
+                    {!ex.scheme &&
+                      ex.unit === "kg" &&
                       ex.lastWeight != null &&
                       ex.lastReps != null &&
                       ex.lastReps >=
-                        repDefault(ex.repProfile, ex.movementPattern, phase) && (
+                        repDefault(ex.repProfile, ex.movementPattern, repPhase) && (
                         <MonoNumber className="mt-1 block text-center text-xs font-medium text-sage-deep">
                           Last time you hit the top of the range — try +
                           {ex.repProfile === "pump" ? "1" : "2,5"} kg
@@ -492,8 +545,8 @@ export function WorkoutClient({
         </div>
       )}
 
-      {/* finish bar */}
-      {doneCount > 0 && (
+      {/* finish bar — content-only sessions (WODs, zone runs) can always finish */}
+      {(doneCount > 0 || exercises.length === 0) && (
         <div className="fixed inset-x-0 bottom-24 z-30 px-5">
           {/* frosted wrapper: heavy white + blur so nothing bleeds through */}
           <div className="mx-auto max-w-md rounded-full bg-surface-strong backdrop-blur-2xl shadow-lg shadow-ink/10">
@@ -503,9 +556,11 @@ export function WorkoutClient({
               onClick={() => setFeelOpen(true)}
             >
               Finish workout
-              <MonoNumber className="text-xs">
-                {doneCount}/{exercises.length}
-              </MonoNumber>
+              {exercises.length > 0 && (
+                <MonoNumber className="text-xs">
+                  {doneCount}/{exercises.length}
+                </MonoNumber>
+              )}
             </PillButton>
           </div>
         </div>

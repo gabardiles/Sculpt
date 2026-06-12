@@ -4,12 +4,13 @@ import { createClient } from "@/lib/supabase/server";
 import type {
   Exercise,
   Goal,
-  Phase,
   Profile,
   Program,
   ProgramDay,
   ProgramExercise,
+  ProgramWeek,
   Quote,
+  WeekIntensity,
 } from "@/lib/types";
 import type { CycleLogRow } from "@/lib/cycle";
 import { redirect } from "next/navigation";
@@ -37,17 +38,19 @@ export async function getProfile(
 
 export interface ProgramWithDays extends Program {
   days: (ProgramDay & { exercises: (ProgramExercise & { exercise: Exercise })[] })[];
+  /** Fixed-schedule programs only — empty for cycle programs. */
+  week_plan: ProgramWeek[];
 }
 
 export async function getActiveProgram(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
 ): Promise<ProgramWithDays | null> {
-  // One round-trip: program + days + exercises nested.
+  // One round-trip: program + weeks + days + exercises nested.
   const { data: program } = await supabase
     .from("programs")
     .select(
-      "*, program_days(*, program_exercises(*, exercise:exercises(*)))"
+      "*, program_weeks(*), program_days(*, program_exercises(*, exercise:exercises(*)))"
     )
     .eq("user_id", userId)
     .eq("active", true)
@@ -61,10 +64,17 @@ export async function getActiveProgram(
   };
   const days = ((program.program_days ?? []) as NestedDay[])
     .slice()
-    .sort((a, b) => a.day_index - b.day_index);
+    .sort(
+      (a, b) =>
+        (a.week_index ?? 0) - (b.week_index ?? 0) || a.day_index - b.day_index
+    );
+  const weekPlan = ((program.program_weeks ?? []) as ProgramWeek[])
+    .slice()
+    .sort((a, b) => a.week_index - b.week_index);
 
   return {
     ...(program as Program),
+    week_plan: weekPlan,
     days: days.map((d) => ({
       ...d,
       exercises: [...(d.program_exercises ?? [])].sort((a, b) => a.sort - b.sort),
@@ -122,12 +132,12 @@ export async function getQuoteOfTheDay(): Promise<Quote | null> {
 export async function getWeekClosures(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string
-): Promise<{ cycle_number: number; week_phase: Phase }[]> {
+): Promise<{ cycle_number: number; week_phase: WeekIntensity }[]> {
   const { data } = await supabase
     .from("week_closures")
     .select("cycle_number, week_phase")
     .eq("user_id", userId);
-  return (data ?? []) as { cycle_number: number; week_phase: Phase }[];
+  return (data ?? []) as { cycle_number: number; week_phase: WeekIntensity }[];
 }
 
 export async function getGoals(

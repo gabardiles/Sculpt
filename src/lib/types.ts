@@ -1,5 +1,14 @@
 export type Phase = "light" | "medium" | "hard";
 
+/**
+ * Week intensity for fixed-schedule programs — the phase vocabulary plus
+ * 'test' (benchmark weeks). 'hard' renders as HEAVY in hybrid programs.
+ */
+export type WeekIntensity = Phase | "test";
+
+/** Session flavour for fixed-schedule programs. */
+export type SessionType = "strength" | "crossfit" | "conditioning";
+
 export type MovementPattern =
   | "hinge"
   | "squat"
@@ -46,6 +55,18 @@ export interface Program {
   days_per_week: number;
   active: boolean;
   cycle_floor: number;
+  /** 'cycle' = repeating 3-week wave; 'fixed' = distinct prescribed weeks. */
+  schedule_mode: "cycle" | "fixed";
+}
+
+/** One prescribed week of a fixed-schedule program. */
+export interface ProgramWeek {
+  id: string;
+  program_id: string;
+  week_index: number;
+  intensity: WeekIntensity;
+  label: string | null;
+  note: string | null;
 }
 
 export interface ProgramDay {
@@ -53,6 +74,13 @@ export interface ProgramDay {
   program_id: string;
   day_index: number;
   name: string;
+  /** Fixed-schedule programs only — null on cycle programs. */
+  week_index: number | null;
+  /** Calendar slot, 1 = Monday … 7 = Sunday. */
+  weekday: number | null;
+  session_type: SessionType;
+  /** Written session body: warmup, WOD, heart-rate zones. */
+  content: string | null;
 }
 
 export interface Exercise {
@@ -76,6 +104,8 @@ export interface ProgramExercise {
   exercise_id: string;
   sort: number;
   sets: number;
+  /** Coach prescription shown verbatim — replaces the derived rep target. */
+  scheme: string | null;
   exercise?: Exercise;
 }
 
@@ -83,7 +113,9 @@ export interface WorkoutLog {
   id: string;
   user_id: string;
   program_day_id: string;
-  week_phase: Phase;
+  /** Fixed-schedule programs store week intensity here (incl. 'test'). */
+  week_phase: WeekIntensity;
+  /** Fixed-schedule programs store week_index here. */
   cycle_number: number;
   completed_at: string;
   feel_rating: number | null;

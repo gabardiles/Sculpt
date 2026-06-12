@@ -8,12 +8,18 @@ import {
 } from "@/lib/data";
 import { deriveCycleState } from "@/lib/cycle";
 import {
+  deriveScheduleState,
+  INTENSITY_LABEL,
+  SESSION_LABEL,
+  type ScheduleWeek,
+} from "@/lib/schedule";
+import {
   DAY_RATIONALE,
   SHARE_PROMPTS,
   SHARE_PROMPT_FALLBACK,
 } from "@/lib/programCopy";
 import { WorkoutClient, type WorkoutExercise } from "@/components/workout/WorkoutClient";
-import type { Phase } from "@/lib/types";
+import type { Phase, WeekIntensity } from "@/lib/types";
 
 export default async function WorkoutPage({
   params,
@@ -28,6 +34,7 @@ export default async function WorkoutPage({
   const day = program.days.find((d) => d.id === dayId);
   if (!day) notFound();
 
+  const fixed = program.schedule_mode === "fixed";
   const dayIds = program.days.map((d) => d.id);
   const exerciseIds = day.exercises.map((pe) => pe.exercise_id);
   const [logs, history, closures] = await Promise.all([
@@ -35,31 +42,63 @@ export default async function WorkoutPage({
     getSetHistory(supabase, user.id, exerciseIds),
     getWeekClosures(supabase, user.id),
   ]);
-  const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
+
+  // Fixed-schedule: this day belongs to exactly one week — the log carries
+  // that week's index and intensity. Cycle: derive the 3-week wave state.
+  let phase: WeekIntensity;
+  let cycle: number;
+  let weekIndex: number;
+  let alreadyDone: boolean;
+  if (fixed) {
+    const scheduleWeeks: ScheduleWeek[] = program.week_plan.map((w) => ({
+      week_index: w.week_index,
+      intensity: w.intensity,
+      label: w.label,
+      note: w.note,
+      dayIds: program.days
+        .filter((d) => d.week_index === w.week_index)
+        .map((d) => d.id),
+    }));
+    const state = deriveScheduleState(scheduleWeeks, logs, closures);
+    const ownWeek = program.week_plan.find((w) => w.week_index === day.week_index);
+    phase = ownWeek?.intensity ?? "light";
+    cycle = day.week_index ?? state.weekIndex;
+    weekIndex = cycle;
+    alreadyDone = state.doneDayIds.has(day.id);
+  } else {
+    const state = deriveCycleState(logs, dayIds, program.cycle_floor, closures);
+    phase = state.phase;
+    cycle = state.cycle;
+    weekIndex = state.weekIndex;
+    alreadyDone = state.doneDayIds.has(day.id);
+  }
 
   // "LAST: 40 kg" — most recent weight in the SAME phase (her hard-week
   // weight shouldn't show during light week). First time in a new phase
   // there's no same-phase history yet, so fall back to the most recent
   // session from ANY week — labeled, so she knows it came from a
   // different intensity. Trend arrow compares previous cycle, same phase.
+  // Fixed-schedule days carry their own prescription, so history is simply
+  // the most recent session of that exercise, whatever week it was.
   const exercises: WorkoutExercise[] = day.exercises.map((pe) => {
     const allRows = history
       .filter((h) => h.exercise_id === pe.exercise_id)
       .sort((a, b) =>
         b.workout_log.completed_at.localeCompare(a.workout_log.completed_at)
       );
-    const rows = allRows.filter(
-      (h) => h.workout_log.week_phase === state.phase
-    );
+    const rows = fixed
+      ? allRows
+      : allRows.filter((h) => h.workout_log.week_phase === phase);
     const last = rows[0] ?? allRows[0] ?? null;
     const lastIsOtherPhase =
-      last != null && last.workout_log.week_phase !== state.phase;
-    const prevCycleRow =
-      rows.find(
-        (r) =>
-          r.workout_log.cycle_number <
-          (rows[0]?.workout_log.cycle_number ?? state.cycle)
-      ) ?? null;
+      !fixed && last != null && last.workout_log.week_phase !== phase;
+    const prevCycleRow = fixed
+      ? null
+      : rows.find(
+          (r) =>
+            r.workout_log.cycle_number <
+            (rows[0]?.workout_log.cycle_number ?? cycle)
+        ) ?? null;
     return {
       programExerciseId: pe.id,
       exerciseId: pe.exercise_id,
@@ -74,6 +113,7 @@ export default async function WorkoutPage({
       instructionUrl: pe.exercise.instruction_url,
       imageUrl: pe.exercise.image_url,
       sets: pe.sets,
+      scheme: pe.scheme,
       lastWeight: last?.weight_kg ?? null,
       lastReps: last?.reps ?? null,
       lastSets: last?.sets ?? null,
@@ -84,19 +124,27 @@ export default async function WorkoutPage({
     };
   });
 
-  const alreadyDone = state.doneDayIds.has(day.id);
-
   return (
     <WorkoutClient
       day={{ id: day.id, name: day.name, index: day.day_index }}
-      phase={state.phase}
-      cycle={state.cycle}
-      weekIndex={state.weekIndex}
+      phase={phase}
+      cycle={cycle}
+      weekIndex={weekIndex}
       exercises={exercises}
       alreadyDone={alreadyDone}
       rationale={DAY_RATIONALE[day.name] ?? null}
       sharePrompt={SHARE_PROMPTS[day.name] ?? SHARE_PROMPT_FALLBACK}
       userId={user.id}
+      fixed={
+        fixed
+          ? {
+              totalWeeks: program.weeks,
+              intensityLabel: INTENSITY_LABEL[phase],
+              sessionLabel: SESSION_LABEL[day.session_type],
+              content: day.content,
+            }
+          : null
+      }
     />
   );
 }
