@@ -297,7 +297,7 @@ export function WorkoutClient({
                   // unmistakable. We're at the gym. Let's go.
                   !e.done &&
                     ex.exerciseId === nextUp?.exerciseId &&
-                    "ring-2 ring-blush-deep shadow-[0_10px_36px_rgba(185,125,119,0.30)]"
+                    "card-spotlight"
                 )}
               >
                 <button
@@ -332,7 +332,7 @@ export function WorkoutClient({
                   <span className="flex-1 min-w-0">
                     <span className="block truncate font-normal">
                       {!e.done && ex.exerciseId === nextUp?.exerciseId && (
-                        <MonoNumber className="mr-2 rounded-full bg-blush-deep px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-white">
+                        <MonoNumber className="mr-2 rounded-full bg-blush-deep px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider text-on-accent">
                           NEXT
                         </MonoNumber>
                       )}

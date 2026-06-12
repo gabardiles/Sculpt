@@ -110,6 +110,21 @@ body {
   background-repeat: no-repeat;
 }
 
+/* The NEXT exercise spotlight — unmistakable in both themes. */
+.card-spotlight {
+  box-shadow:
+    0 0 0 2px var(--color-blush-deep),
+    0 10px 36px rgba(185, 125, 119, 0.3);
+}
+
+[data-theme="spartan"] .card-spotlight {
+  background: rgba(240, 130, 38, 0.1);
+  border-color: rgba(240, 130, 38, 0.45);
+  box-shadow:
+    0 0 0 2px #f08226,
+    0 10px 40px rgba(240, 130, 38, 0.3);
+}
+
 /* Behind editorial photos: blush in Sculpt, neutral grey in Spartan
    (where the photos are hidden and the panel is what you see). */
 .editorial-fallback {
