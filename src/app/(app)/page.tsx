@@ -337,7 +337,7 @@ export default async function DashboardPage() {
       <section className="mt-6">
         {nextDay ? (
           <Link href={`/workout/${nextDay.id}`} className="block">
-            <Card className="relative h-64 overflow-hidden bg-blush/25 p-0 active:scale-[0.99] transition-transform duration-150">
+            <Card className="relative h-64 overflow-hidden editorial-fallback p-0 active:scale-[0.99] transition-transform duration-150">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={dayImage(nextDay.day_index)}

@@ -66,22 +66,22 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Sculpt — Spartan. Deep warm black, vivid orange, glow gradients.
-   Pure variable swap: zero JS, zero extra requests, zero runtime cost. */
+/* Sculpt — Spartan. Neutral dark greys; orange is a complement, not a
+   wash. Pure variable swap: zero JS, zero requests, zero runtime cost. */
 [data-theme="spartan"] {
-  --color-bg: #11100d;
+  --color-bg: #141414;
   --color-blush: #f08226;
   --color-blush-deep: #fb9d3f;
-  --color-ink: #f2ece4;
-  --color-ink-soft: #a89c8e;
-  --color-sage: #5f7a52;
-  --color-sage-deep: #a9c79a;
-  --color-on-accent: #1c1409;
-  --color-glass: rgba(255, 255, 255, 0.055);
-  --color-surface: rgba(255, 255, 255, 0.08);
-  --color-surface-strong: rgba(26, 23, 19, 0.92);
-  --color-surface-soft: rgba(255, 255, 255, 0.05);
-  --color-edge: rgba(255, 255, 255, 0.1);
+  --color-ink: #f0efed;
+  --color-ink-soft: #9b9892;
+  --color-sage: #5d7355;
+  --color-sage-deep: #a8c49b;
+  --color-on-accent: #171411;
+  --color-glass: rgba(255, 255, 255, 0.05);
+  --color-surface: rgba(255, 255, 255, 0.07);
+  --color-surface-strong: rgba(24, 24, 24, 0.92);
+  --color-surface-soft: rgba(255, 255, 255, 0.045);
+  --color-edge: rgba(255, 255, 255, 0.09);
 }
 
 [data-theme="spartan"] .glass,
@@ -101,12 +101,23 @@ body {
 }
 
 [data-theme="spartan"] .app-shell {
+  /* a whisper of warmth at the very top — accent, not a wash */
   background-image: radial-gradient(
-    90% 38% at 50% 0%,
-    rgba(240, 130, 38, 0.14),
-    transparent 65%
+    80% 26% at 50% 0%,
+    rgba(240, 130, 38, 0.06),
+    transparent 60%
   );
   background-repeat: no-repeat;
+}
+
+/* Behind editorial photos: blush in Sculpt, neutral grey in Spartan
+   (where the photos are hidden and the panel is what you see). */
+.editorial-fallback {
+  background-color: rgba(232, 200, 196, 0.25);
+}
+
+[data-theme="spartan"] .editorial-fallback {
+  background-color: rgba(255, 255, 255, 0.06);
 }
 
 /* Spartan imagery is pending — hide the borrowed editorial photos for now.
@@ -120,11 +131,11 @@ body {
   background:
     radial-gradient(
       120% 90% at 85% 0%,
-      rgba(240, 130, 38, 0.35) 0%,
-      rgba(240, 130, 38, 0.08) 45%,
+      rgba(240, 130, 38, 0.22) 0%,
+      rgba(240, 130, 38, 0.05) 45%,
       transparent 70%
     ),
-    linear-gradient(160deg, rgba(240, 130, 38, 0.15), transparent 60%);
+    linear-gradient(160deg, rgba(255, 255, 255, 0.04), transparent 60%);
 }
 
 @layer components {

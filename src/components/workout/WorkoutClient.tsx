@@ -219,7 +219,7 @@ export function WorkoutClient({
   return (
     <main className="animate-fade-in">
       {/* editorial banner — full bleed, flush with the top edge */}
-      <div className="relative -mx-5 -mt-[max(1.5rem,env(safe-area-inset-top))] h-72 overflow-hidden rounded-b-[28px] bg-blush/25">
+      <div className="relative -mx-5 -mt-[max(1.5rem,env(safe-area-inset-top))] h-72 overflow-hidden rounded-b-[28px] editorial-fallback">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={dayImage(day.index)}

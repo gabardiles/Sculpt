@@ -32,7 +32,7 @@ export function DayList({ days }: { days: DayRowItem[] }) {
                 d.isNext && "ring-2 ring-blush-deep/60"
               )}
             >
-              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-blush/25">
+              <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl editorial-fallback">
                 {/* number fallback shows wherever the photo is hidden */}
                 <MonoNumber className="absolute inset-0 flex items-center justify-center text-sm text-ink-soft">
                   {d.index}
