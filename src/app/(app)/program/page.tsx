@@ -63,7 +63,7 @@ export default async function ProgramPage() {
   const { data: library } = await supabase
     .from("exercises")
     .select("*")
-    .eq("is_global", true)
+    .or(`is_global.eq.true,created_by.eq.${user.id}`)
     .order("name");
 
   return (

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Check,
+  CircleHelp,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -18,6 +19,7 @@ import { Eyebrow, MonoNumber } from "@/components/ui/MonoNumber";
 import { Sheet } from "@/components/ui/Sheet";
 import {
   addExercise,
+  createCustomExercise,
   removeExercise,
   resetCycle,
   swapExercise,
@@ -67,9 +69,21 @@ export function ProgramClient({
   const [addFor, setAddFor] = useState<DayRow | null>(null);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [confirmSwitch, setConfirmSwitch] = useState(false);
 
   const TEMPLATES = ["Lean & Sculpted", "Strong & Built"];
   const otherTemplate = TEMPLATES.find((t) => t !== program.name) ?? null;
+
+  async function doSwitch() {
+    if (!otherTemplate || busy) return;
+    setBusy(true);
+    await switchProgram(otherTemplate);
+    setConfirmSwitch(false);
+    setBusy(false);
+  }
 
   // The guardrail: only same movement pattern + same primary muscle group.
   // Same training role (rep_profile) comes first — a heavy compound and a
@@ -147,6 +161,13 @@ export function ProgramClient({
           </MonoNumber>
         </div>
         <div className="flex items-center">
+          <button
+            aria-label="Help — how editing works"
+            onClick={() => setHelpOpen(true)}
+            className="flex h-12 w-12 items-center justify-center rounded-full text-ink-soft active:bg-ink/5"
+          >
+            <CircleHelp size={18} strokeWidth={1.5} />
+          </button>
           <button
             aria-label={editing ? "Done editing" : "Edit program"}
             onClick={() => setEditing(!editing)}
@@ -318,7 +339,58 @@ export function ProgramClient({
         </section>
       )}
 
-      {/* small menu — manual reset + program switch live here, out of the way */}
+      {/* switch program — visible, small, with an honest warning */}
+      {otherTemplate && (
+        <section className="mt-8">
+          <Card className="flex items-center gap-3 px-4 py-3">
+            <Repeat
+              size={16}
+              strokeWidth={1.5}
+              className="shrink-0 text-ink-soft"
+            />
+            <span className="min-w-0 flex-1 text-xs font-light leading-snug text-ink-soft">
+              {confirmSwitch ? (
+                <>
+                  Replace <span className="font-medium">{program.name}</span>{" "}
+                  with {otherTemplate}? Your history is kept, but the new
+                  program starts at cycle 1.
+                </>
+              ) : (
+                <>
+                  Prefer {otherTemplate}? Switching replaces your current
+                  program — history stays.
+                </>
+              )}
+            </span>
+            {confirmSwitch ? (
+              <span className="flex shrink-0 items-center gap-1.5">
+                <button
+                  disabled={busy}
+                  onClick={doSwitch}
+                  className="rounded-full bg-blush px-3 py-2 text-xs font-medium text-on-accent disabled:opacity-40"
+                >
+                  {busy ? "…" : "Yes, switch"}
+                </button>
+                <button
+                  onClick={() => setConfirmSwitch(false)}
+                  className="rounded-full px-2 py-2 text-xs font-light text-ink-soft"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmSwitch(true)}
+                className="shrink-0 rounded-full border border-ink/15 bg-surface-soft px-3 py-2 text-xs text-ink-soft active:bg-ink/5"
+              >
+                Switch
+              </button>
+            )}
+          </Card>
+        </section>
+      )}
+
+      {/* small menu — manual reset lives here, out of the way */}
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Program">
         <div className="flex flex-col gap-3 pb-2">
           <p className="text-sm font-light text-ink-soft">
@@ -328,30 +400,160 @@ export function ProgramClient({
           <PillButton variant="ghost" onClick={doReset} disabled={busy}>
             Reset cycle
           </PillButton>
-
-          {otherTemplate && (
-            <>
-              <p className="mt-2 text-sm font-light text-ink-soft">
-                Switching programs archives this one (history kept) and starts
-                fresh at cycle 1.
-              </p>
-              <PillButton
-                variant="ghost"
-                disabled={busy}
-                onClick={async () => {
-                  if (busy) return;
-                  setBusy(true);
-                  await switchProgram(otherTemplate);
-                  setMenuOpen(false);
-                  setBusy(false);
-                }}
-              >
-                <Repeat size={15} strokeWidth={1.5} />
-                Switch to {otherTemplate}
-              </PillButton>
-            </>
-          )}
         </div>
+      </Sheet>
+
+      {/* help — how editing works */}
+      <Sheet open={helpOpen} onClose={() => setHelpOpen(false)} title="How this works">
+        <div className="flex flex-col gap-4 pb-2 text-sm font-light leading-relaxed text-ink-soft">
+          <p>
+            <span className="font-medium text-ink">Edit your program.</span>{" "}
+            Tap the pencil up top. Every exercise gets a{" "}
+            <Repeat size={13} className="inline text-blush-deep" /> swap icon —
+            you&apos;ll only ever be offered exercises that train the same
+            muscle with the same movement, so the program stays balanced no
+            matter what you change. Same-role options come first; machines and
+            free weights are interchangeable.
+          </p>
+          <p>
+            <span className="font-medium text-ink">Add or remove.</span> In
+            edit mode each day has an “Add exercise” row and a{" "}
+            <Trash2 size={13} className="inline" /> on every exercise. Removing
+            never deletes your logged history.
+          </p>
+          <p>
+            <span className="font-medium text-ink">Your own exercises.</span>{" "}
+            Missing something your gym has? Create it below — name it, say
+            what it trains, and it joins your library (only you see it). Paste
+            a YouTube link if you want the video behind the play button. Reps
+            are automatic: the 3-week wave sets them from the training role
+            you pick.
+          </p>
+          <PillButton
+            variant="ghost"
+            onClick={() => {
+              setHelpOpen(false);
+              setCreateOpen(true);
+            }}
+          >
+            <Plus size={16} strokeWidth={1.5} /> Create your own exercise
+          </PillButton>
+        </div>
+      </Sheet>
+
+      {/* create your own exercise */}
+      <Sheet
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false);
+          setCreateError(null);
+        }}
+        title="Your own exercise"
+      >
+        <form
+          action={async (fd) => {
+            setCreateError(null);
+            const res = await createCustomExercise(fd);
+            if (res.ok) {
+              setCreateOpen(false);
+            } else {
+              setCreateError(res.error);
+            }
+          }}
+          className="flex flex-col gap-3 pb-2"
+        >
+          <input
+            name="name"
+            required
+            maxLength={60}
+            placeholder="Exercise name"
+            className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-sm outline-none focus:border-blush-deep"
+          />
+          <div className="flex gap-2">
+            <select
+              name="muscle_group"
+              required
+              defaultValue=""
+              className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none"
+            >
+              <option value="" disabled>
+                Muscle
+              </option>
+              {[
+                "glutes",
+                "hamstrings",
+                "quads",
+                "back",
+                "chest",
+                "shoulders",
+                "arms",
+                "core",
+                "calves",
+              ].map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
+            <select
+              name="movement_pattern"
+              required
+              defaultValue=""
+              className="h-12 min-w-0 flex-1 rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none"
+            >
+              <option value="" disabled>
+                Movement
+              </option>
+              {[
+                "hinge",
+                "squat",
+                "lunge",
+                "thrust",
+                "abduction",
+                "push",
+                "pull",
+                "core",
+                "accessory",
+              ].map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <select
+            name="rep_profile"
+            required
+            defaultValue=""
+            className="h-12 rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none"
+          >
+            <option value="" disabled>
+              Training role — sets your reps automatically
+            </option>
+            <option value="strength">Heavy — 10–12 / 6–8 / 4–6 reps</option>
+            <option value="pump">Pump — 15–20 / 12–15 / 10–12 reps</option>
+            <option value="timed">Timed hold — 30 / 40 / 45 s</option>
+          </select>
+          <input
+            name="equipment"
+            maxLength={40}
+            placeholder="Equipment (optional) — e.g. machine, dumbbells"
+            className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-sm outline-none focus:border-blush-deep"
+          />
+          <input
+            name="video_url"
+            inputMode="url"
+            placeholder="YouTube link (optional) — paste it here"
+            className="h-12 rounded-full border border-ink/15 bg-surface px-5 text-sm outline-none focus:border-blush-deep"
+          />
+          {createError && (
+            <p className="text-center text-xs text-blush-deep">{createError}</p>
+          )}
+          <PillButton type="submit">Save to my library</PillButton>
+          <p className="text-center text-xs font-light text-ink-soft">
+            Only you see your own exercises. Find them when swapping or adding.
+          </p>
+        </form>
       </Sheet>
 
       {/* smart swap — only compatible alternatives */}
@@ -449,6 +651,17 @@ export function ProgramClient({
               </li>
             ))}
           </ul>
+          <button
+            onClick={() => {
+              setAddFor(null);
+              setSearch("");
+              setCreateOpen(true);
+            }}
+            className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 text-sm font-light text-blush-deep"
+          >
+            <Plus size={16} strokeWidth={1.5} />
+            Not in the list? Create your own
+          </button>
         </div>
       </Sheet>
     </main>

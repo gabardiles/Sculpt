@@ -494,6 +494,85 @@ export async function resetCycle(programId: string, nextCycle: number) {
   revalidatePath("/program");
 }
 
+const MUSCLE_GROUPS = [
+  "glutes",
+  "hamstrings",
+  "quads",
+  "back",
+  "chest",
+  "shoulders",
+  "arms",
+  "core",
+  "calves",
+];
+const PATTERNS = [
+  "hinge",
+  "squat",
+  "lunge",
+  "thrust",
+  "abduction",
+  "push",
+  "pull",
+  "core",
+  "accessory",
+];
+const PROFILES = ["strength", "pump", "timed"];
+
+/** Accepts watch/share/shorts/embed YouTube links → privacy embed URL. */
+function toEmbedUrl(input: string): string | null {
+  const m = input.match(
+    /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/
+  );
+  return m ? `https://www.youtube-nocookie.com/embed/${m[1]}` : null;
+}
+
+/** A user's own exercise — private to her, joins the swap/add pools. */
+export async function createCustomExercise(formData: FormData) {
+  const { supabase, userId } = await requireUserId();
+
+  const name = String(formData.get("name") ?? "").trim().slice(0, 60);
+  const muscle = String(formData.get("muscle_group") ?? "");
+  const pattern = String(formData.get("movement_pattern") ?? "");
+  const profile = String(formData.get("rep_profile") ?? "");
+  const equipment =
+    String(formData.get("equipment") ?? "").trim().slice(0, 40) || null;
+  const video = String(formData.get("video_url") ?? "").trim();
+
+  if (name.length < 2) return { ok: false as const, error: "Give it a name." };
+  if (!MUSCLE_GROUPS.includes(muscle) || !PATTERNS.includes(pattern)) {
+    return { ok: false as const, error: "Pick a muscle and a movement." };
+  }
+  if (!PROFILES.includes(profile)) {
+    return { ok: false as const, error: "Pick a training role." };
+  }
+  let instructionUrl: string | null = null;
+  if (video) {
+    instructionUrl = toEmbedUrl(video);
+    if (!instructionUrl) {
+      return {
+        ok: false as const,
+        error: "Couldn't read that YouTube link — paste the video's URL.",
+      };
+    }
+  }
+
+  const { error } = await supabase.from("exercises").insert({
+    name,
+    muscle_group: muscle,
+    movement_pattern: pattern,
+    rep_profile: profile,
+    unit: profile === "timed" ? "s" : "kg",
+    equipment,
+    instruction_url: instructionUrl,
+    is_global: false,
+    created_by: userId,
+  });
+  if (error) return { ok: false as const, error: "Couldn't save — try again." };
+
+  revalidatePath("/program");
+  return { ok: true as const };
+}
+
 export async function swapExercise(programExerciseId: string, newExerciseId: string) {
   const { supabase } = await requireUserId();
   // RLS guarantees she can only touch rows in her own program.
