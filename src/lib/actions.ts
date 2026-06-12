@@ -714,23 +714,41 @@ export async function inviteUser(formData: FormData) {
     return { ok: false as const, error: "That doesn't look like an email." };
   }
 
-  // Create the account directly (no invite link — login is by emailed
-  // 6-digit code, so nothing depends on redirect-URL configuration).
+  // 1. Create the account directly — active and auto-approved immediately
+  //    (email_confirm: true), no password. Login is by emailed 6-digit code,
+  //    so nothing depends on redirect-URL configuration.
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { error: createError } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
     user_metadata: { invited_by: userId },
   });
-  if (error) {
+  const alreadyExisted =
+    !!createError && createError.message.toLowerCase().includes("already");
+  if (createError && !alreadyExisted) {
+    return { ok: false as const, error: createError.message };
+  }
+
+  // 2. Actually email her a sign-in code. createUser() on its own sends
+  //    nothing — that's why earlier invites arrived silently (no email at
+  //    all). signInWithOtp delivers the same code she'd request at login.
+  const { error: sendError } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (sendError) {
     return {
       ok: false as const,
-      error: error.message.toLowerCase().includes("already")
-        ? "She's already invited — she can just sign in."
-        : error.message,
+      error: `Account is ready, but the code email failed to send: ${sendError.message}`,
     };
   }
-  return { ok: true as const };
+
+  return {
+    ok: true as const,
+    message: alreadyExisted
+      ? "She already had an account — re-sent her a sign-in code."
+      : "Invite sent — she'll get a sign-in code by email.",
+  };
 }
 
 // ------------------------------------------------------------------- theme

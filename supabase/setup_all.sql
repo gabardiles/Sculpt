@@ -32,7 +32,19 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id) values (new.id) on conflict do nothing;
+  -- Standing admins (Gabriel + Helena) are auto-promoted on signup so the
+  -- /admin invite screen is always available to them. Never demotes.
+  insert into public.profiles (id, is_admin)
+  values (
+    new.id,
+    lower(new.email) in (
+      'gabriel@ardiles.se',
+      'gabriel.ardiles@gmail.com',
+      'helena.ardiles@gmail.com'
+    )
+  )
+  on conflict (id) do update
+    set is_admin = public.profiles.is_admin or excluded.is_admin;
   return new;
 end;
 $$;
@@ -41,6 +53,17 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- Promote the standing admins if their accounts already exist.
+update public.profiles p
+set is_admin = true
+from auth.users u
+where p.id = u.id
+  and lower(u.email) in (
+    'gabriel@ardiles.se',
+    'gabriel.ardiles@gmail.com',
+    'helena.ardiles@gmail.com'
+  );
 
 -- Backfill profiles for users created before the trigger existed.
 insert into public.profiles (id)

@@ -16,7 +16,11 @@ export function InviteForm() {
           setBusy(true);
           setStatus(null);
           const res = await inviteUser(fd);
-          setStatus(res?.ok ? "Invite sent ✓" : res?.error ?? "Something went wrong.");
+          setStatus(
+            res?.ok
+              ? res.message ?? "Invite sent ✓"
+              : res?.error ?? "Something went wrong."
+          );
           setBusy(false);
         }}
         className="flex flex-col gap-4"
