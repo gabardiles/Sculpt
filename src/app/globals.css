@@ -232,3 +232,9 @@ body {
     stroke-dashoffset: 0;
   }
 }
+
+/* An active training session owns the screen — the workout footer (X /
+   Finish) replaces the tab bar until the session is finished or left. */
+body[data-training="1"] nav[data-tab-bar] {
+  display: none;
+}
