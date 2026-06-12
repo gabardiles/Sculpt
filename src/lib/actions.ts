@@ -730,7 +730,52 @@ export async function inviteUser(formData: FormData) {
         : error.message,
     };
   }
-  return { ok: true as const };
+
+  // The account exists now — she can sign in with a code immediately.
+  // If Resend is configured, also send a proper invite email telling her so.
+  let emailSent = false;
+  const resendKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.RESEND_FROM;
+  if (resendKey && resendFrom) {
+    const site =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      "https://sculpt-gabardiles-projects.vercel.app";
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `Sculpt <${resendFrom}>`,
+          to: email,
+          subject: "You're invited to Sculpt",
+          html: `
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#2B2422;background:#FBF7F6;border-radius:24px">
+  <p style="font-size:11px;letter-spacing:2px;color:#6F635E;margin:0">TRAINING TRACKER</p>
+  <h1 style="font-weight:300;letter-spacing:4px;margin:8px 0 24px">SCULPT</h1>
+  <p style="font-size:15px;line-height:1.6;font-weight:300">
+    You've been invited. Your account is ready — no password, ever.
+  </p>
+  <ol style="font-size:14px;line-height:1.9;font-weight:300;padding-left:20px">
+    <li>Open <a href="${site}" style="color:#B97D77">${site.replace("https://", "")}</a></li>
+    <li>Sign in with <strong>${email}</strong></li>
+    <li>A 6-digit code lands here — type it in, and you're training</li>
+  </ol>
+  <p style="font-size:13px;line-height:1.6;color:#6F635E;font-weight:300">
+    Tip: install it like an app — You&nbsp;→&nbsp;Install on your phone.
+  </p>
+</div>`,
+        }),
+      });
+      emailSent = res.ok;
+    } catch {
+      emailSent = false;
+    }
+  }
+
+  return { ok: true as const, emailSent };
 }
 
 // ------------------------------------------------------------------- theme
