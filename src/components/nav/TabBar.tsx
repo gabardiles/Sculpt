@@ -21,7 +21,7 @@ export function TabBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-40">
+    <nav data-tab-bar className="fixed bottom-0 inset-x-0 z-40">
       <div className="mx-auto max-w-md px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         {/* Near-opaque so scrolling content doesn't bleed through the bar */}
         <div className="flex items-stretch justify-between rounded-full px-2 bg-bg/95 backdrop-blur-xl border border-edge shadow-[0_8px_32px_rgba(43,36,34,0.10)]">
