@@ -115,7 +115,7 @@ export default function LoginPage() {
                 required
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                placeholder="········"
+                placeholder="······"
                 aria-label="Sign-in code"
                 className="h-14 rounded-full border border-ink/15 bg-surface px-5 text-center font-mono text-2xl tracking-[0.3em] outline-none focus:border-blush-deep"
               />

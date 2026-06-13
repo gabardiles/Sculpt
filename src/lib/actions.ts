@@ -778,23 +778,75 @@ export async function inviteUser(formData: FormData) {
     return { ok: false as const, error: "That doesn't look like an email." };
   }
 
-  // Create the account directly (no invite link — login is by emailed
-  // 6-digit code, so nothing depends on redirect-URL configuration).
+  // 1. Create the account directly — active and auto-approved immediately
+  //    (email_confirm: true), no password. Login is by emailed 6-digit code,
+  //    so nothing depends on redirect-URL configuration.
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.createUser({
+  const { error: createError } = await admin.auth.admin.createUser({
     email,
     email_confirm: true,
     user_metadata: { invited_by: userId },
   });
-  if (error) {
-    return {
-      ok: false as const,
-      error: error.message.toLowerCase().includes("already")
-        ? "She's already invited — she can just sign in."
-        : error.message,
-    };
+  const alreadyExisted =
+    !!createError && createError.message.toLowerCase().includes("already");
+  if (createError && !alreadyExisted) {
+    return { ok: false as const, error: createError.message };
   }
-  return { ok: true as const };
+
+  // 2. Email her. createUser() on its own sends nothing — that's why
+  //    earlier invites arrived silently (no email at all). Prefer a branded
+  //    Resend invite when configured; otherwise fall back to Supabase's own
+  //    mailer with the same sign-in code she'd request at login. Both are
+  //    best-effort: the admin UI always offers a copyable invite message.
+  let emailSent = false;
+  const resendKey = process.env.RESEND_API_KEY;
+  const resendFrom = process.env.RESEND_FROM;
+  if (resendKey && resendFrom) {
+    const site =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      "https://sculpt-gabardiles-projects.vercel.app";
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `Sculpt <${resendFrom}>`,
+          to: email,
+          subject: "You're invited to Sculpt",
+          html: `
+<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#2B2422;background:#FBF7F6;border-radius:24px">
+  <p style="font-size:11px;letter-spacing:2px;color:#6F635E;margin:0">TRAINING TRACKER</p>
+  <h1 style="font-weight:300;letter-spacing:4px;margin:8px 0 24px">SCULPT</h1>
+  <p style="font-size:15px;line-height:1.6;font-weight:300">
+    You've been invited. Your account is ready — no password, ever.
+  </p>
+  <ol style="font-size:14px;line-height:1.9;font-weight:300;padding-left:20px">
+    <li>Open <a href="${site}" style="color:#B97D77">${site.replace("https://", "")}</a></li>
+    <li>Sign in with <strong>${email}</strong></li>
+    <li>A 6-digit code lands here — type it in, and you're training</li>
+  </ol>
+  <p style="font-size:13px;line-height:1.6;color:#6F635E;font-weight:300">
+    Tip: install it like an app — You&nbsp;→&nbsp;Install on your phone.
+  </p>
+</div>`,
+        }),
+      });
+      emailSent = res.ok;
+    } catch {
+      emailSent = false;
+    }
+  } else {
+    const { error: sendError } = await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    });
+    emailSent = !sendError;
+  }
+
+  return { ok: true as const, emailSent };
 }
 
 // ------------------------------------------------------------------- theme

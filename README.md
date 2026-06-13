@@ -33,8 +33,13 @@ photos, goals, and a small friends feed for sharing wins.
 2. **Auth**: login is by emailed 6-digit code (`signInWithOtp` +
    `verifyOtp`, with `shouldCreateUser: false` — invite-only). In Supabase:
    - Authentication → Sign In / Up: disable "Allow new users to sign up".
-   - Authentication → Emails → **Magic Link** template: make sure the code
-     is in the email body by including `{{ .Token }}`, e.g.
+   - Authentication → Sign In / Up → Email → **Email OTP Length: 6**. The
+     app UI expects a 6-digit code; if this is set to 8 the email and the
+     screen won't match.
+   - Authentication → Emails → **Magic Link** template: the code **must**
+     be in the email body via `{{ .Token }}`. The default template only
+     contains a *link* — if you leave it, recipients get a link instead of
+     the 6-digit code the screen asks for. Use e.g.
      ```html
      <h2>Your Sculpt code</h2>
      <p>Enter this code in the app:</p>
@@ -42,8 +47,16 @@ photos, goals, and a small friends feed for sharing wins.
      ```
    No redirect-URL configuration is needed — the code flow never leaves
    the app.
+
+   **Invites email a code.** The /admin invite creates the account
+   (active + auto-approved, no password) *and* sends the recipient a
+   sign-in code. Creating the account alone sends nothing, so the two
+   steps must stay together — see `inviteUser` in `src/lib/actions.ts`.
 3. **Env**: copy `.env.example` → `.env.local` and fill in the keys.
-4. **Make yourself admin** (enables the `/admin` invite screen):
+4. **Admins** (enables the `/admin` invite screen). The standing admins
+   (Gabriel + Helena) are set in `0013_admins.sql` / `setup_all.sql`: their
+   accounts are promoted on signup automatically, so just running the
+   migrations is enough. To add another admin:
    ```sql
    update public.profiles set is_admin = true
    where id = (select id from auth.users where email = 'you@example.com');
