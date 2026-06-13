@@ -206,7 +206,7 @@ create table if not exists public.progress_photos (
 create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  type text not null check (type in ('body_weight','exercise_pr','consistency')),
+  type text not null check (type in ('body_weight','exercise_pr','consistency','fitness_score')),
   target_value numeric not null,
   baseline_value numeric,
   exercise_id uuid references public.exercises (id),
@@ -215,6 +215,11 @@ create table if not exists public.goals (
   achieved_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+-- Allow the fitness-score goal type on databases created before it existed.
+alter table public.goals drop constraint if exists goals_type_check;
+alter table public.goals add constraint goals_type_check
+  check (type in ('body_weight','exercise_pr','consistency','fitness_score'));
 
 create table if not exists public.quotes (
   id uuid primary key default gen_random_uuid(),

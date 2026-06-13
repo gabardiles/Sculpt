@@ -26,6 +26,7 @@ const TYPE_COPY: Record<GoalType, { title: string; hint: string }> = {
   body_weight: { title: "Body weight", hint: "Target weight in kg" },
   exercise_pr: { title: "Exercise PR", hint: "Target weight in kg" },
   consistency: { title: "Consistency", hint: "Workouts per week, for 4 weeks" },
+  fitness_score: { title: "Fitness score", hint: "Target score, 1–10" },
 };
 
 export function GoalsClient({

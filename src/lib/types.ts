@@ -20,7 +20,11 @@ export type MovementPattern =
   | "core"
   | "accessory";
 
-export type GoalType = "body_weight" | "exercise_pr" | "consistency";
+export type GoalType =
+  | "body_weight"
+  | "exercise_pr"
+  | "consistency"
+  | "fitness_score";
 
 /** Training role — drives rep targets per phase and swap tiering. */
 export type RepProfile = "strength" | "pump" | "timed";

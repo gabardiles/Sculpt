@@ -44,20 +44,54 @@ export default async function DashboardPage() {
   if (!profile?.name || !program) redirect("/onboarding");
 
   const dayIds = program.days.map((d) => d.id);
-  const [logs, quote, goals, closures, { data: setRows }, { data: friendRows }] =
-    await Promise.all([
-      getCycleLogs(supabase, user.id, dayIds),
-      getQuoteOfTheDay(),
-      getGoals(supabase, user.id),
-      getWeekClosures(supabase, user.id),
-      supabase
-        .from("set_logs")
-        .select(
-          "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(id, user_id, completed_at, cycle_number)"
-        )
-        .eq("workout_log.user_id", user.id),
-      supabase.from("friends").select("friend_id").eq("user_id", user.id),
-    ]);
+  const [
+    logs,
+    quote,
+    goals,
+    closures,
+    { data: setRows },
+    { data: friendRows },
+    { data: reportRow },
+    { data: latestPhotoRow },
+  ] = await Promise.all([
+    getCycleLogs(supabase, user.id, dayIds),
+    getQuoteOfTheDay(),
+    getGoals(supabase, user.id),
+    getWeekClosures(supabase, user.id),
+    supabase
+      .from("set_logs")
+      .select(
+        "exercise_id, weight_kg, reps, sets, workout_log:workout_logs!inner(id, user_id, completed_at, cycle_number)"
+      )
+      .eq("workout_log.user_id", user.id),
+    supabase.from("friends").select("friend_id").eq("user_id", user.id),
+    supabase
+      .from("fitness_reports")
+      .select("overall_score, level, assessable, created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("progress_photos")
+      .select("created_at")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  // Fitness report shortcut: show the latest score, and nudge a re-review
+  // when a newer photo has landed since it.
+  const report = reportRow as {
+    overall_score: number;
+    level: string | null;
+    assessable: boolean;
+    created_at: string;
+  } | null;
+  const latestPhotoAt = (latestPhotoRow as { created_at: string } | null)?.created_at ?? null;
+  const reportHasNewerPhoto =
+    !!latestPhotoAt && !!report && latestPhotoAt > report.created_at;
 
   const fixed = program.schedule_mode === "fixed";
 
@@ -337,6 +371,8 @@ export default async function DashboardPage() {
       latestBodyWeight: bw?.weight_kg ?? null,
       prByExercise,
       workoutDates: logs.map((l) => l.completed_at),
+      latestFitnessScore:
+        report?.assessable ? report.overall_score : null,
     };
     goalRows = activeGoals.map((g) => {
       const p = computeGoalProgress(g, ctx);
@@ -517,6 +553,46 @@ export default async function DashboardPage() {
                 </MonoNumber>
               </div>
             )}
+          </Card>
+        </section>
+      )}
+
+      {/* fitness report — score + a shortcut to add a fresh photo */}
+      {report?.assessable && (
+        <section className="mt-6">
+          <div className="flex items-center justify-between">
+            <Eyebrow>FITNESS REPORT</Eyebrow>
+            {reportHasNewerPhoto && (
+              <span className="text-xs font-light text-blush-deep">
+                new photo · ready to re-review
+              </span>
+            )}
+          </div>
+          <Card className="mt-2 overflow-hidden">
+            <Link
+              href="/report"
+              className="flex items-center gap-4 px-4 py-4 active:bg-ink/5"
+            >
+              <ProgressRing progress={report.overall_score / 10}>
+                <MonoNumber className="text-sm font-light">
+                  {report.overall_score.toFixed(1)}
+                </MonoNumber>
+              </ProgressRing>
+              <div className="min-w-0 flex-1">
+                <p className="font-light">{report.level ?? "Your level"}</p>
+                <MonoNumber className="text-xs text-ink-soft">
+                  {report.overall_score.toFixed(1)}/10 · {formatDay(report.created_at)}
+                </MonoNumber>
+              </div>
+              <ChevronRight size={17} strokeWidth={1.5} className="shrink-0 text-ink-soft" />
+            </Link>
+            <Link
+              href="/photos"
+              className="flex items-center gap-2 border-t border-edge px-4 py-3 text-sm text-blush-deep active:bg-blush/10"
+            >
+              <Camera size={16} strokeWidth={1.6} />
+              Add a new photo for an updated review
+            </Link>
           </Card>
         </section>
       )}
