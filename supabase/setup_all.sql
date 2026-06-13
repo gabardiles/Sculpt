@@ -32,6 +32,7 @@ alter table public.profiles
   check (gender in ('female','male','unspecified'));
 alter table public.profiles add column if not exists height_cm numeric;
 alter table public.profiles add column if not exists goal_note text;
+alter table public.profiles add column if not exists age int;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -333,7 +334,7 @@ create policy "profiles own update" on public.profiles
 -- Column-level guard: only `name` is user-editable (is_admin etc. are not).
 revoke update on public.profiles from authenticated;
 revoke update on public.profiles from anon;
-grant update (name, gender, height_cm, goal_note) on public.profiles to authenticated;
+grant update (name, gender, height_cm, goal_note, age, theme) on public.profiles to authenticated;
 drop policy if exists "profiles friends read" on public.profiles;
 create policy "profiles friends read" on public.profiles
   for select using (

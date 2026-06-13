@@ -34,6 +34,7 @@ export interface Profile {
   theme: "sculpt" | "spartan";
   /** For the physique report's gendered aesthetic target. */
   gender: "female" | "male" | "unspecified" | null;
+  age: number | null;
   height_cm: number | null;
   /** Free-text "dream" focus, e.g. "visible six-pack". */
   goal_note: string | null;

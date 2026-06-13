@@ -24,6 +24,8 @@ const TEMPLATE_NAMES = [
   "Hybrid Athlete",
 ] as const;
 
+const GENDERS = ["female", "male", "unspecified"] as const;
+
 async function cloneTemplateProgram(
   supabase: Supa,
   userId: string,
@@ -118,11 +120,6 @@ export interface IntakeAnswers {
   glutes: number;
   strong: number;
   lean: number;
-}
-
-function parseSlider(v: FormDataEntryValue | null, fallback: number): number {
-  const n = parseInt(String(v ?? ""), 10);
-  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : fallback;
 }
 
 /**
@@ -265,9 +262,46 @@ export async function completeOnboarding(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
-  await supabase.from("profiles").update({ name }).eq("id", userId);
+  // A few data points up front: sex drives the suggested program + theme.
+  const sex = String(formData.get("sex") ?? "");
+  const gender = GENDERS.includes(sex as (typeof GENDERS)[number])
+    ? (sex as (typeof GENDERS)[number])
+    : "unspecified";
 
-  // Clone the default template if she doesn't have a program yet.
+  const ageN = parseInt(String(formData.get("age") ?? ""), 10);
+  const age = Number.isFinite(ageN) && ageN >= 13 && ageN <= 100 ? ageN : null;
+  const heightN = parseFloat(String(formData.get("height_cm") ?? "").replace(",", "."));
+  const heightCm =
+    Number.isFinite(heightN) && heightN >= 120 && heightN <= 230 ? heightN : null;
+  const weightN = parseFloat(String(formData.get("weight") ?? "").replace(",", "."));
+
+  // Men get the Spartan look + Strong & Built; women (and unspecified) get
+  // the Sculpt dusty-pink look + Lean & Sculpted.
+  const theme = gender === "male" ? "spartan" : "sculpt";
+  const template = gender === "male" ? "Strong & Built" : "Lean & Sculpted";
+
+  await supabase
+    .from("profiles")
+    .update({ name, gender, age, height_cm: heightCm, theme })
+    .eq("id", userId);
+
+  // Cookie mirror so the very first paint after onboarding is themed.
+  const { cookies } = await import("next/headers");
+  (await cookies()).set("sculpt-theme", theme, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
+  // Log starting weight to the diary so it feeds trends + the fitness report.
+  if (Number.isFinite(weightN) && weightN > 0 && weightN <= 400) {
+    const date = new Date().toISOString().slice(0, 10);
+    await supabase
+      .from("body_weight")
+      .upsert({ user_id: userId, date, weight_kg: weightN }, { onConflict: "user_id,date" });
+  }
+
+  // Clone the suggested template if they don't have a program yet.
   const { data: existing } = await supabase
     .from("programs")
     .select("id")
@@ -276,19 +310,10 @@ export async function completeOnboarding(formData: FormData) {
     .maybeSingle();
 
   if (!existing) {
-    await cloneTemplateProgram(supabase, userId, TEMPLATE_NAMES[0]);
+    await cloneTemplateProgram(supabase, userId, template);
   }
 
-  // Intake sliders (defaults change nothing — the template IS the default).
-  const answers: IntakeAnswers = {
-    glutes: parseSlider(formData.get("glutes"), 5),
-    strong: parseSlider(formData.get("strong"), 3),
-    lean: parseSlider(formData.get("lean"), 3),
-  };
-  if (answers.strong >= 4 || answers.lean >= 4 || answers.glutes <= 2) {
-    await applyIntakeCore(supabase, userId, answers);
-  }
-
+  revalidatePath("/", "layout");
   redirect("/");
 }
 
@@ -807,8 +832,6 @@ export async function switchProgram(templateName: string) {
 }
 
 // ----------------------------------------------------------- fitness report
-
-const GENDERS = ["female", "male", "unspecified"] as const;
 
 /** One-time (editable) setup for the physique report: gender, height, goal. */
 export async function saveFitnessProfile(formData: FormData) {
