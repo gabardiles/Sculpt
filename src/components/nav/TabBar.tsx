@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, CalendarRange, Heart, CircleUser } from "lucide-react";
+import { Home, CalendarRange, Sparkles, Heart, CircleUser } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 const TABS = [
   { href: "/", label: "Today", icon: Home, match: ["/", "/workout"] },
   { href: "/program", label: "Program", icon: CalendarRange, match: ["/program"] },
+  { href: "/report", label: "Report", icon: Sparkles, match: ["/report"] },
   { href: "/friends", label: "Friends", icon: Heart, match: ["/friends"] },
   {
     href: "/you",

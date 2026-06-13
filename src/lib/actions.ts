@@ -24,6 +24,8 @@ const TEMPLATE_NAMES = [
   "Hybrid Athlete",
 ] as const;
 
+const GENDERS = ["female", "male", "unspecified"] as const;
+
 async function cloneTemplateProgram(
   supabase: Supa,
   userId: string,
@@ -118,11 +120,6 @@ export interface IntakeAnswers {
   glutes: number;
   strong: number;
   lean: number;
-}
-
-function parseSlider(v: FormDataEntryValue | null, fallback: number): number {
-  const n = parseInt(String(v ?? ""), 10);
-  return Number.isFinite(n) && n >= 1 && n <= 5 ? n : fallback;
 }
 
 /**
@@ -265,9 +262,46 @@ export async function completeOnboarding(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return;
 
-  await supabase.from("profiles").update({ name }).eq("id", userId);
+  // A few data points up front: sex drives the suggested program + theme.
+  const sex = String(formData.get("sex") ?? "");
+  const gender = GENDERS.includes(sex as (typeof GENDERS)[number])
+    ? (sex as (typeof GENDERS)[number])
+    : "unspecified";
 
-  // Clone the default template if she doesn't have a program yet.
+  const ageN = parseInt(String(formData.get("age") ?? ""), 10);
+  const age = Number.isFinite(ageN) && ageN >= 13 && ageN <= 100 ? ageN : null;
+  const heightN = parseFloat(String(formData.get("height_cm") ?? "").replace(",", "."));
+  const heightCm =
+    Number.isFinite(heightN) && heightN >= 120 && heightN <= 230 ? heightN : null;
+  const weightN = parseFloat(String(formData.get("weight") ?? "").replace(",", "."));
+
+  // Men get the Spartan look + Strong & Built; women (and unspecified) get
+  // the Sculpt dusty-pink look + Lean & Sculpted.
+  const theme = gender === "male" ? "spartan" : "sculpt";
+  const template = gender === "male" ? "Strong & Built" : "Lean & Sculpted";
+
+  await supabase
+    .from("profiles")
+    .update({ name, gender, age, height_cm: heightCm, theme })
+    .eq("id", userId);
+
+  // Cookie mirror so the very first paint after onboarding is themed.
+  const { cookies } = await import("next/headers");
+  (await cookies()).set("sculpt-theme", theme, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+
+  // Log starting weight to the diary so it feeds trends + the fitness report.
+  if (Number.isFinite(weightN) && weightN > 0 && weightN <= 400) {
+    const date = new Date().toISOString().slice(0, 10);
+    await supabase
+      .from("body_weight")
+      .upsert({ user_id: userId, date, weight_kg: weightN }, { onConflict: "user_id,date" });
+  }
+
+  // Clone the suggested template if they don't have a program yet.
   const { data: existing } = await supabase
     .from("programs")
     .select("id")
@@ -276,19 +310,10 @@ export async function completeOnboarding(formData: FormData) {
     .maybeSingle();
 
   if (!existing) {
-    await cloneTemplateProgram(supabase, userId, TEMPLATE_NAMES[0]);
+    await cloneTemplateProgram(supabase, userId, template);
   }
 
-  // Intake sliders (defaults change nothing — the template IS the default).
-  const answers: IntakeAnswers = {
-    glutes: parseSlider(formData.get("glutes"), 5),
-    strong: parseSlider(formData.get("strong"), 3),
-    lean: parseSlider(formData.get("lean"), 3),
-  };
-  if (answers.strong >= 4 || answers.lean >= 4 || answers.glutes <= 2) {
-    await applyIntakeCore(supabase, userId, answers);
-  }
-
+  revalidatePath("/", "layout");
   redirect("/");
 }
 
@@ -856,6 +881,214 @@ export async function switchProgram(templateName: string) {
   return ok
     ? { ok: true as const }
     : { ok: false as const, error: "Template not found — run the latest SQL." };
+}
+
+// ----------------------------------------------------------- fitness report
+
+/** One-time (editable) setup for the physique report: gender, height, goal. */
+export async function saveFitnessProfile(formData: FormData) {
+  const { supabase, userId } = await requireUserId();
+
+  const gender = String(formData.get("gender") ?? "");
+  if (!GENDERS.includes(gender as (typeof GENDERS)[number])) {
+    return { ok: false as const, error: "Pick one." };
+  }
+  const height = parseFloat(String(formData.get("height_cm") ?? "").replace(",", "."));
+  const heightCm =
+    Number.isFinite(height) && height >= 120 && height <= 230 ? height : null;
+  const goalNote = String(formData.get("goal_note") ?? "").trim().slice(0, 200) || null;
+
+  await supabase
+    .from("profiles")
+    .update({ gender, height_cm: heightCm, goal_note: goalNote })
+    .eq("id", userId);
+
+  // Optional weight — logged to the diary so it feeds the report and trends.
+  const weight = parseFloat(String(formData.get("weight") ?? "").replace(",", "."));
+  if (Number.isFinite(weight) && weight > 0 && weight <= 400) {
+    const date = new Date().toISOString().slice(0, 10);
+    await supabase
+      .from("body_weight")
+      .upsert({ user_id: userId, date, weight_kg: weight }, { onConflict: "user_id,date" });
+  }
+
+  revalidatePath("/report");
+  return { ok: true as const };
+}
+
+/** Analyze the latest progress photos into a new fitness report. */
+export async function generateFitnessReport() {
+  const { supabase, userId } = await requireUserId();
+  const { analyzePhysique, isAiConfigured } = await import("@/lib/physique");
+
+  if (!isAiConfigured()) {
+    return { ok: false as const, error: "not_configured" };
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("gender, height_cm, goal_note")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!profile?.gender || profile.gender === null) {
+    return { ok: false as const, error: "needs_setup" };
+  }
+
+  const [{ data: photos }, { data: bw }] = await Promise.all([
+    supabase
+      .from("progress_photos")
+      .select("storage_path")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(3),
+    supabase
+      .from("body_weight")
+      .select("weight_kg")
+      .eq("user_id", userId)
+      .order("date", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+
+  const paths = ((photos ?? []) as { storage_path: string }[]).map((p) => p.storage_path);
+  if (!paths.length) return { ok: false as const, error: "needs_photo" };
+
+  // Download the private photos and inline them as base64 for the vision call.
+  const images: { base64: string; mediaType: string }[] = [];
+  for (const path of paths) {
+    const { data: blob } = await supabase.storage.from("progress-photos").download(path);
+    if (!blob) continue;
+    const buf = Buffer.from(await blob.arrayBuffer());
+    const mediaType =
+      blob.type && /^image\/(jpeg|png|webp)$/.test(blob.type)
+        ? blob.type
+        : path.endsWith(".png")
+          ? "image/png"
+          : path.endsWith(".webp")
+            ? "image/webp"
+            : "image/jpeg";
+    images.push({ base64: buf.toString("base64"), mediaType });
+  }
+  if (!images.length) return { ok: false as const, error: "needs_photo" };
+
+  const outcome = await analyzePhysique({
+    gender: profile.gender as "female" | "male" | "unspecified",
+    heightCm: (profile.height_cm as number | null) ?? null,
+    weightKg: (bw?.weight_kg as number | null) ?? null,
+    goalNote: (profile.goal_note as string | null) ?? null,
+    images,
+  });
+
+  if (!outcome.ok) {
+    return {
+      ok: false as const,
+      error: outcome.reason === "not_configured" ? "not_configured" : "analysis_failed",
+    };
+  }
+
+  const r = outcome.result;
+  const { data: report, error } = await supabase
+    .from("fitness_reports")
+    .insert({
+      user_id: userId,
+      assessable: r.assessable,
+      overall_score: r.overall_score,
+      level: r.level,
+      next_level: r.next_level,
+      metrics: r.metrics,
+      strengths: r.strengths,
+      focus_areas: r.focus_areas,
+      focus_muscles: r.focus_muscles,
+      summary: r.summary,
+      next_level_advice: r.next_level_advice,
+      body_weight_kg: (bw?.weight_kg as number | null) ?? null,
+      photo_count: images.length,
+      model: outcome.model,
+    })
+    .select("id")
+    .single();
+
+  if (error || !report) {
+    return { ok: false as const, error: "save_failed" };
+  }
+
+  revalidatePath("/report");
+  return { ok: true as const, reportId: report.id };
+}
+
+/**
+ * One-tap weak-point focus: adds pump-tier accessories for the report's
+ * focus muscles into the active program, using the same same-muscle
+ * guardrail as the swap engine. Compounds are never touched; up to three
+ * accessories are added, each to the day that already trains that muscle
+ * most (else the lightest day). Returns the human-readable changes.
+ */
+export async function applyWeakPointFocus(reportId: string) {
+  const { supabase, userId } = await requireUserId();
+
+  const { data: report } = await supabase
+    .from("fitness_reports")
+    .select("focus_muscles")
+    .eq("id", reportId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  const focusMuscles = ((report?.focus_muscles ?? []) as string[]).slice(0, 3);
+  if (!focusMuscles.length) return { ok: false as const, error: "No focus areas." };
+
+  const { getActiveProgram } = await import("@/lib/data");
+  const program = await getActiveProgram(supabase, userId);
+  if (!program) return { ok: false as const, error: "No active program." };
+
+  const { data: lib } = await supabase
+    .from("exercises")
+    .select("*")
+    .eq("is_global", true);
+  type Ex = { id: string; name: string; muscle_group: string; rep_profile: string };
+  const library = (lib ?? []) as Ex[];
+  const inProgram = new Set(
+    program.days.flatMap((d) => d.exercises.map((pe) => pe.exercise_id))
+  );
+
+  const changes: string[] = [];
+  for (const muscle of focusMuscles) {
+    if (changes.length >= 3) break;
+    const pick = library.find(
+      (e) =>
+        e.muscle_group === muscle &&
+        e.rep_profile === "pump" &&
+        !inProgram.has(e.id)
+    );
+    if (!pick) continue;
+
+    // The day that already trains this muscle most keeps the program coherent;
+    // fall back to the day with the fewest exercises.
+    const score = (d: (typeof program.days)[number]) =>
+      d.exercises.filter((pe) => pe.exercise.muscle_group === muscle).length;
+    const day =
+      [...program.days].sort((a, b) => score(b) - score(a))[0] &&
+      score([...program.days].sort((a, b) => score(b) - score(a))[0]) > 0
+        ? [...program.days].sort((a, b) => score(b) - score(a))[0]
+        : [...program.days].sort((a, b) => a.exercises.length - b.exercises.length)[0];
+    if (!day) continue;
+
+    const nextSort = Math.max(0, ...day.exercises.map((x) => x.sort)) + 1;
+    const { error } = await supabase.from("program_exercises").insert({
+      program_day_id: day.id,
+      exercise_id: pick.id,
+      sort: nextSort,
+      sets: 3,
+    });
+    if (error) continue;
+    inProgram.add(pick.id);
+    changes.push(`Added ${pick.name} to ${day.name}`);
+  }
+
+  if (!changes.length) {
+    return { ok: false as const, error: "Your program already covers these." };
+  }
+  revalidatePath("/program");
+  revalidatePath("/report");
+  return { ok: true as const, changes };
 }
 
 // -------------------------------------------------------------------- auth
