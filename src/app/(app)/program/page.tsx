@@ -101,6 +101,7 @@ export default async function ProgramPage() {
             programExerciseId: pe.id,
             sort: pe.sort,
             scheme: pe.scheme,
+            isFocus: pe.is_focus,
             exercise: pe.exercise,
           })),
         })),
@@ -134,6 +135,7 @@ export default async function ProgramPage() {
           programExerciseId: pe.id,
           sort: pe.sort,
           scheme: pe.scheme,
+            isFocus: pe.is_focus,
           exercise: pe.exercise,
         })),
       }))}

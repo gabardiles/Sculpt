@@ -37,6 +37,8 @@ interface ExerciseRow {
   programExerciseId: string;
   sort: number;
   scheme?: string | null;
+  /** Part of the fitness-report goal-focus block. */
+  isFocus?: boolean;
   exercise: Exercise;
 }
 
@@ -402,8 +404,15 @@ export function ProgramClient({
                                 className="flex items-center justify-between gap-2 py-1.5"
                               >
                                 <span className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-light">
-                                    {row.exercise.name}
+                                  <span className="flex items-center gap-1.5 text-sm font-light">
+                                    <span className="truncate">
+                                      {row.exercise.name}
+                                    </span>
+                                    {row.isFocus && (
+                                      <span className="shrink-0 rounded-full bg-blush/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-blush-deep">
+                                        Goal
+                                      </span>
+                                    )}
                                   </span>
                                   {row.scheme && (
                                     <MonoNumber className="block truncate text-[11px] text-ink-soft/80">
@@ -531,8 +540,13 @@ export function ProgramClient({
                               key={row.programExerciseId}
                               className="flex items-center justify-between gap-2 py-1.5"
                             >
-                              <span className="flex-1 truncate text-sm font-light">
-                                {row.exercise.name}
+                              <span className="flex min-w-0 flex-1 items-center gap-1.5 text-sm font-light">
+                                <span className="truncate">{row.exercise.name}</span>
+                                {row.isFocus && (
+                                  <span className="shrink-0 rounded-full bg-blush/40 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-blush-deep">
+                                    Goal
+                                  </span>
+                                )}
                               </span>
                               <MonoNumber className="text-[11px] uppercase text-ink-soft/70">
                                 {row.exercise.equipment}

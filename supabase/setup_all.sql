@@ -160,6 +160,12 @@ create table if not exists public.program_exercises (
 -- When set it replaces the derived phase rep target in the workout UI.
 alter table public.program_exercises add column if not exists scheme text;
 
+-- Marks accessories added by the fitness-report weak-point plan — a separate,
+-- replaceable "goal focus" portion (re-applying the plan swaps these out, not
+-- stacks on top).
+alter table public.program_exercises
+  add column if not exists is_focus boolean not null default false;
+
 create table if not exists public.workout_logs (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,

@@ -86,7 +86,10 @@ export function ReportClient({
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
-  const [applied, setApplied] = useState<string[] | null>(null);
+  const [applied, setApplied] = useState<{
+    changes: string[];
+    replaced: string[];
+  } | null>(null);
 
   async function analyze() {
     if (analyzing) return;
@@ -109,7 +112,7 @@ export function ReportClient({
     setApplying(true);
     const res = await applyWeakPointFocus(latest.id);
     setApplying(false);
-    if (res.ok) setApplied(res.changes);
+    if (res.ok) setApplied({ changes: res.changes, replaced: res.replaced ?? [] });
     else setError(res.error);
   }
 
@@ -336,12 +339,18 @@ export function ReportClient({
                         <Check size={16} strokeWidth={2} /> Built into your program
                       </p>
                       <ul className="mt-2 flex flex-col gap-1">
-                        {applied.map((c, i) => (
+                        {applied.changes.map((c, i) => (
                           <li key={i} className="text-sm font-light text-ink-soft">
                             {c}
                           </li>
                         ))}
                       </ul>
+                      {applied.replaced.length > 0 && (
+                        <p className="mt-2 border-t border-edge pt-2 text-xs font-light text-ink-soft">
+                          Replaced your previous focus work:{" "}
+                          {applied.replaced.join(", ")}.
+                        </p>
+                      )}
                       <Link href="/program" className="mt-3 block">
                         <PillButton variant="ghost" className="w-full">
                           See my program
