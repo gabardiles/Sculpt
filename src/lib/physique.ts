@@ -65,7 +65,7 @@ export function isAiConfigured(): boolean {
   return !!process.env.ANTHROPIC_API_KEY;
 }
 
-const RESPONSE_SCHEMA = {
+export const RESPONSE_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
@@ -152,6 +152,40 @@ function clamp10(n: unknown): number {
   return Math.max(0, Math.min(10, Math.round(v * 10) / 10));
 }
 
+/**
+ * Normalize and harden the model's JSON into a stored report. Structured
+ * outputs make the shape reliable, but this still clamps scores, drops
+ * unknown metric/muscle keys, and bounds string lengths so a surprising
+ * response can never write junk or oversized rows.
+ */
+export function normalizePhysiqueResult(raw: Partial<PhysiqueResult>): PhysiqueResult {
+  return {
+    assessable: !!raw.assessable,
+    overall_score: clamp10(raw.overall_score),
+    level: String(raw.level ?? "").slice(0, 40),
+    next_level: String(raw.next_level ?? "").slice(0, 40),
+    metrics: (Array.isArray(raw.metrics) ? raw.metrics : [])
+      .filter((m) => METRIC_KEYS.includes(m?.key as (typeof METRIC_KEYS)[number]))
+      .map((m) => ({
+        key: m.key,
+        label: String(m.label ?? "").slice(0, 60),
+        score: clamp10(m.score),
+        comment: String(m.comment ?? "").slice(0, 300),
+      })),
+    strengths: (Array.isArray(raw.strengths) ? raw.strengths : [])
+      .slice(0, 5)
+      .map((s) => String(s).slice(0, 200)),
+    focus_areas: (Array.isArray(raw.focus_areas) ? raw.focus_areas : [])
+      .slice(0, 5)
+      .map((s) => String(s).slice(0, 200)),
+    focus_muscles: (Array.isArray(raw.focus_muscles) ? raw.focus_muscles : [])
+      .filter((m) => FOCUS_MUSCLES.includes(m as (typeof FOCUS_MUSCLES)[number]))
+      .slice(0, 3),
+    summary: String(raw.summary ?? "").slice(0, 600),
+    next_level_advice: String(raw.next_level_advice ?? "").slice(0, 600),
+  };
+}
+
 export async function analyzePhysique(
   input: PhysiqueInput
 ): Promise<AnalyzeOutcome> {
@@ -224,36 +258,9 @@ For focus_muscles, pick the 1–3 app muscle groups whose training would most mo
       .filter((b): b is Anthropic.TextBlock => b.type === "text")
       .map((b) => b.text)
       .join("");
-    const raw = JSON.parse(text) as PhysiqueResult;
-
-    const result: PhysiqueResult = {
-      assessable: !!raw.assessable,
-      overall_score: clamp10(raw.overall_score),
-      level: String(raw.level ?? "").slice(0, 40),
-      next_level: String(raw.next_level ?? "").slice(0, 40),
-      metrics: (Array.isArray(raw.metrics) ? raw.metrics : [])
-        .filter((m) => METRIC_KEYS.includes(m.key as (typeof METRIC_KEYS)[number]))
-        .map((m) => ({
-          key: m.key,
-          label: String(m.label ?? "").slice(0, 60),
-          score: clamp10(m.score),
-          comment: String(m.comment ?? "").slice(0, 300),
-        })),
-      strengths: (Array.isArray(raw.strengths) ? raw.strengths : [])
-        .slice(0, 5)
-        .map((s) => String(s).slice(0, 200)),
-      focus_areas: (Array.isArray(raw.focus_areas) ? raw.focus_areas : [])
-        .slice(0, 5)
-        .map((s) => String(s).slice(0, 200)),
-      focus_muscles: (Array.isArray(raw.focus_muscles) ? raw.focus_muscles : [])
-        .filter((m) =>
-          FOCUS_MUSCLES.includes(m as (typeof FOCUS_MUSCLES)[number])
-        )
-        .slice(0, 3),
-      summary: String(raw.summary ?? "").slice(0, 600),
-      next_level_advice: String(raw.next_level_advice ?? "").slice(0, 600),
-    };
-
+    const result = normalizePhysiqueResult(
+      JSON.parse(text) as Partial<PhysiqueResult>
+    );
     return { ok: true, result, model: MODEL };
   } catch (e) {
     return {
