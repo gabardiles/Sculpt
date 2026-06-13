@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Camera, Check, PlayCircle, X } from "lucide-react";
@@ -64,6 +64,12 @@ interface EntryState {
   sets: string;
   done: boolean;
 }
+
+// Leaving mid-session must never cost her the inputs: drafts live in
+// localStorage per day and survive an X, a refresh, or a closed tab.
+// Cleared on finish; ignored after a day (a stale draft is worse than none).
+const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+const draftKey = (dayId: string) => `sculpt-workout-draft:${dayId}`;
 
 export function WorkoutClient({
   day,
@@ -133,6 +139,70 @@ export function WorkoutClient({
   const [restKey, setRestKey] = useState(0);
   const [restUntil, setRestUntil] = useState<number | null>(null);
 
+  // The session starts the moment she touches an exercise — from then on
+  // the screen is owned by the workout: menu hidden, footer shows X/Finish.
+  // Written sessions (WODs, zone runs) have no exercises to tap, so opening
+  // the day IS the start.
+  const [started, setStarted] = useState(exercises.length === 0);
+
+  // Restore a saved draft (she pressed X earlier, or the app reloaded).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(draftKey(day.id));
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        at?: number;
+        entries?: Record<string, EntryState>;
+      };
+      if (!draft.entries || Date.now() - (draft.at ?? 0) > DRAFT_MAX_AGE_MS) {
+        localStorage.removeItem(draftKey(day.id));
+        return;
+      }
+      const saved = draft.entries;
+      setEntries((prev) => {
+        const next = { ...prev };
+        for (const id of Object.keys(next)) {
+          const d = saved[id];
+          if (d) {
+            next[id] = {
+              weight: String(d.weight ?? ""),
+              reps: String(d.reps ?? ""),
+              sets: String(d.sets ?? ""),
+              done: !!d.done,
+            };
+          }
+        }
+        return next;
+      });
+      setStarted(true);
+    } catch {
+      // Unreadable draft — start clean rather than crash the session.
+    }
+  }, [day.id]);
+
+  // Persist the draft on every change while the session is live.
+  useEffect(() => {
+    if (!started || celebrating) return;
+    try {
+      localStorage.setItem(
+        draftKey(day.id),
+        JSON.stringify({ at: Date.now(), entries })
+      );
+    } catch {
+      // Storage full or blocked — the session still works, just unsaved.
+    }
+  }, [entries, started, celebrating, day.id]);
+
+  // An active session owns the screen: the tab bar steps aside (CSS hook).
+  useEffect(() => {
+    const active = started && !celebrating;
+    if (active) document.body.dataset.training = "1";
+    else delete document.body.dataset.training;
+    return () => {
+      delete document.body.dataset.training;
+    };
+  }, [started, celebrating]);
+
   const doneCount = useMemo(
     () => Object.values(entries).filter((e) => e.done).length,
     [entries]
@@ -201,6 +271,10 @@ export function WorkoutClient({
       entries: payload,
     });
     if (res.ok) {
+      // The session is logged — the draft has served its purpose.
+      try {
+        localStorage.removeItem(draftKey(day.id));
+      } catch {}
       setFeelOpen(false);
       // The celebration doubles as the share moment — no auto-redirect.
       setCelebrating(true);
@@ -307,6 +381,12 @@ export function WorkoutClient({
             Already logged this week — logging again adds a second session.
           </p>
         )}
+        {started && (
+          <p className="mt-2 text-xs text-ink-soft/80">
+            Session started — ✕ pauses it and keeps your inputs, Finish logs
+            it.
+          </p>
+        )}
       </div>
 
       {/* the written session — warmup, WOD, zones — straight from the coach */}
@@ -347,9 +427,11 @@ export function WorkoutClient({
               >
                 <button
                   className="flex w-full items-center gap-3 px-5 py-4 text-left min-h-12"
-                  onClick={() =>
-                    setExpanded(isOpen ? null : ex.exerciseId)
-                  }
+                  onClick={() => {
+                    // First touch on an exercise = the session has started.
+                    setStarted(true);
+                    setExpanded(isOpen ? null : ex.exerciseId);
+                  }}
                 >
                   {/* done check — the sage moment */}
                   <span
@@ -545,23 +627,33 @@ export function WorkoutClient({
         </div>
       )}
 
-      {/* finish bar — content-only sessions (WODs, zone runs) can always finish */}
-      {(doneCount > 0 || exercises.length === 0) && (
-        <div className="fixed inset-x-0 bottom-24 z-30 px-5">
-          {/* frosted wrapper: heavy white + blur so nothing bleeds through */}
-          <div className="mx-auto max-w-md rounded-full bg-surface-strong backdrop-blur-2xl shadow-lg shadow-ink/10">
-            <PillButton
-              className="w-full"
-              variant={allDone ? "primary" : "ghost"}
-              onClick={() => setFeelOpen(true)}
+      {/* session footer — the menu is gone, only two ways out: X or Finish.
+          X leaves with everything saved; Finish works at any point. */}
+      {started && (
+        <div className="fixed inset-x-0 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 px-5">
+          <div className="mx-auto flex max-w-md items-center gap-2">
+            <button
+              aria-label="Leave workout — your inputs are saved"
+              onClick={() => router.replace("/")}
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface-strong backdrop-blur-2xl shadow-lg shadow-ink/10 text-ink-soft active:bg-ink/5"
             >
-              Finish workout
-              {exercises.length > 0 && (
-                <MonoNumber className="text-xs">
-                  {doneCount}/{exercises.length}
-                </MonoNumber>
-              )}
-            </PillButton>
+              <X size={20} strokeWidth={1.8} />
+            </button>
+            {/* frosted wrapper: heavy white + blur so nothing bleeds through */}
+            <div className="min-w-0 flex-1 rounded-full bg-surface-strong backdrop-blur-2xl shadow-lg shadow-ink/10">
+              <PillButton
+                className="w-full"
+                variant={allDone ? "primary" : "ghost"}
+                onClick={() => setFeelOpen(true)}
+              >
+                Finish workout
+                {exercises.length > 0 && (
+                  <MonoNumber className="text-xs">
+                    {doneCount}/{exercises.length}
+                  </MonoNumber>
+                )}
+              </PillButton>
+            </div>
           </div>
         </div>
       )}

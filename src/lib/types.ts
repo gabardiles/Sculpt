@@ -20,7 +20,11 @@ export type MovementPattern =
   | "core"
   | "accessory";
 
-export type GoalType = "body_weight" | "exercise_pr" | "consistency";
+export type GoalType =
+  | "body_weight"
+  | "exercise_pr"
+  | "consistency"
+  | "fitness_score";
 
 /** Training role — drives rep targets per phase and swap tiering. */
 export type RepProfile = "strength" | "pump" | "timed";
@@ -32,6 +36,40 @@ export interface Profile {
   invited_by: string | null;
   friend_code: string;
   theme: "sculpt" | "spartan";
+  /** For the physique report's gendered aesthetic target. */
+  gender: "female" | "male" | "unspecified" | null;
+  age: number | null;
+  height_cm: number | null;
+  /** Free-text "dream" focus, e.g. "visible six-pack". */
+  goal_note: string | null;
+  created_at: string;
+}
+
+/** One scored axis of a physique report (0–10). */
+export interface FitnessMetric {
+  key: string;
+  label: string;
+  score: number;
+  comment: string;
+}
+
+export interface FitnessReport {
+  id: string;
+  user_id: string;
+  assessable: boolean;
+  overall_score: number;
+  level: string | null;
+  next_level: string | null;
+  metrics: FitnessMetric[];
+  strengths: string[];
+  focus_areas: string[];
+  /** App muscle groups to bias the weak-point plan toward. */
+  focus_muscles: string[];
+  summary: string | null;
+  next_level_advice: string | null;
+  body_weight_kg: number | null;
+  photo_count: number;
+  model: string | null;
   created_at: string;
 }
 

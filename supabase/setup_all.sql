@@ -26,6 +26,14 @@ alter table public.profiles
   add column if not exists theme text not null default 'sculpt'
   check (theme in ('sculpt','spartan'));
 
+-- Physique-report personalization (gendered aesthetic target + body stats).
+alter table public.profiles
+  add column if not exists gender text
+  check (gender in ('female','male','unspecified'));
+alter table public.profiles add column if not exists height_cm numeric;
+alter table public.profiles add column if not exists goal_note text;
+alter table public.profiles add column if not exists age int;
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -198,7 +206,7 @@ create table if not exists public.progress_photos (
 create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
-  type text not null check (type in ('body_weight','exercise_pr','consistency')),
+  type text not null check (type in ('body_weight','exercise_pr','consistency','fitness_score')),
   target_value numeric not null,
   baseline_value numeric,
   exercise_id uuid references public.exercises (id),
@@ -208,10 +216,35 @@ create table if not exists public.goals (
   created_at timestamptz not null default now()
 );
 
+-- Allow the fitness-score goal type on databases created before it existed.
+alter table public.goals drop constraint if exists goals_type_check;
+alter table public.goals add constraint goals_type_check
+  check (type in ('body_weight','exercise_pr','consistency','fitness_score'));
+
 create table if not exists public.quotes (
   id uuid primary key default gen_random_uuid(),
   text text not null,
   author text
+);
+
+-- AI physique reports — one row per analysis, newest is the current report.
+create table if not exists public.fitness_reports (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  assessable boolean not null default true,
+  overall_score numeric not null default 0,
+  level text,
+  next_level text,
+  metrics jsonb not null default '[]',
+  strengths jsonb not null default '[]',
+  focus_areas jsonb not null default '[]',
+  focus_muscles jsonb not null default '[]',
+  summary text,
+  next_level_advice text,
+  body_weight_kg numeric,
+  photo_count int not null default 0,
+  model text,
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.friends (
@@ -310,6 +343,11 @@ alter table public.friends enable row level security;
 alter table public.feed_posts enable row level security;
 alter table public.feed_cheers enable row level security;
 alter table public.week_closures enable row level security;
+alter table public.fitness_reports enable row level security;
+
+drop policy if exists "fitness_reports own" on public.fitness_reports;
+create policy "fitness_reports own" on public.fitness_reports
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
 drop policy if exists "week_closures own" on public.week_closures;
 create policy "week_closures own" on public.week_closures
@@ -324,7 +362,7 @@ create policy "profiles own update" on public.profiles
 -- Column-level guard: only `name` is user-editable (is_admin etc. are not).
 revoke update on public.profiles from authenticated;
 revoke update on public.profiles from anon;
-grant update (name) on public.profiles to authenticated;
+grant update (name, gender, height_cm, goal_note, age, theme) on public.profiles to authenticated;
 drop policy if exists "profiles friends read" on public.profiles;
 create policy "profiles friends read" on public.profiles
   for select using (
@@ -529,6 +567,7 @@ create index if not exists set_logs_exercise on public.set_logs (exercise_id);
 create index if not exists body_weight_user_date on public.body_weight (user_id, date desc);
 create index if not exists exercises_swap on public.exercises (movement_pattern, muscle_group) where is_global;
 create index if not exists program_days_week on public.program_days (program_id, week_index, day_index);
+create index if not exists fitness_reports_user on public.fitness_reports (user_id, created_at desc);
 create index if not exists feed_posts_user_created on public.feed_posts (user_id, created_at desc);
 create index if not exists feed_cheers_post on public.feed_cheers (post_id);
 

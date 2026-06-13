@@ -7,6 +7,8 @@ export interface GoalContext {
   prByExercise: Map<string, number>;
   /** completed workout dates (ISO strings) */
   workoutDates: string[];
+  /** latest assessable physique-report overall score (0–10) */
+  latestFitnessScore: number | null;
 }
 
 export interface GoalProgress {
@@ -35,6 +37,25 @@ export function computeGoalProgress(goal: Goal, ctx: GoalContext): GoalProgress 
       progress: hit ? 1 : total === 0 ? 0 : rightDirection ? Math.min(1, travelled / total) : 0,
       current: `${formatKg(current)} kg`,
       target: `${formatKg(target)} kg`,
+      hit,
+    };
+  }
+
+  if (goal.type === "fitness_score") {
+    const current = ctx.latestFitnessScore;
+    const target = goal.target_value;
+    // Baseline = the score when the goal was set, so progress reflects the
+    // climb. Up is always good for a fitness score.
+    const baseline = goal.baseline_value ?? current ?? 0;
+    if (current == null) {
+      return { progress: 0, current: "—", target: `${target.toFixed(1)}/10`, hit: false };
+    }
+    const span = target - baseline;
+    const hit = current >= target;
+    return {
+      progress: hit ? 1 : span <= 0 ? 0 : Math.max(0, Math.min(1, (current - baseline) / span)),
+      current: `${current.toFixed(1)}/10`,
+      target: `${target.toFixed(1)}/10`,
       hit,
     };
   }
@@ -78,6 +99,8 @@ export function goalLabel(goal: Goal): string {
       return goal.exercise?.short_label ?? goal.exercise?.name ?? "PR";
     case "consistency":
       return "Consistency";
+    case "fitness_score":
+      return "Fitness score";
   }
 }
 
