@@ -239,6 +239,7 @@ create table if not exists public.fitness_reports (
   strengths jsonb not null default '[]',
   focus_areas jsonb not null default '[]',
   focus_muscles jsonb not null default '[]',
+  plan jsonb not null default '[]',
   summary text,
   next_level_advice text,
   body_weight_kg numeric,
@@ -246,6 +247,9 @@ create table if not exists public.fitness_reports (
   model text,
   created_at timestamptz not null default now()
 );
+
+-- Prioritized coach's plan, for databases created before it existed.
+alter table public.fitness_reports add column if not exists plan jsonb not null default '[]';
 
 create table if not exists public.friends (
   id uuid primary key default gen_random_uuid(),
