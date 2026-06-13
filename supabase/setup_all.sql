@@ -378,6 +378,14 @@ create policy "exercises read" on public.exercises
 drop policy if exists "exercises insert own" on public.exercises;
 create policy "exercises insert own" on public.exercises
   for insert with check (created_by = auth.uid());
+-- Members may edit/delete only their OWN custom exercises (never the library).
+drop policy if exists "exercises update own" on public.exercises;
+create policy "exercises update own" on public.exercises
+  for update using (created_by = auth.uid() and not is_global)
+  with check (created_by = auth.uid() and not is_global);
+drop policy if exists "exercises delete own" on public.exercises;
+create policy "exercises delete own" on public.exercises
+  for delete using (created_by = auth.uid() and not is_global);
 
 drop policy if exists "programs read" on public.programs;
 create policy "programs read" on public.programs

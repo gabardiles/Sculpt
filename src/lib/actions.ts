@@ -637,6 +637,99 @@ export async function createCustomExercise(formData: FormData) {
   return { ok: true as const };
 }
 
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Edit one of your own custom exercises. RLS blocks touching the library. */
+export async function updateCustomExercise(formData: FormData) {
+  const { supabase } = await requireUserId();
+
+  const id = String(formData.get("id") ?? "");
+  if (!UUID_RE.test(id)) return { ok: false as const, error: "Unknown exercise." };
+
+  const name = String(formData.get("name") ?? "").trim().slice(0, 60);
+  const muscle = String(formData.get("muscle_group") ?? "");
+  const pattern = String(formData.get("movement_pattern") ?? "");
+  const profile = String(formData.get("rep_profile") ?? "");
+  const equipment =
+    String(formData.get("equipment") ?? "").trim().slice(0, 40) || null;
+  const video = String(formData.get("video_url") ?? "").trim();
+
+  if (name.length < 2) return { ok: false as const, error: "Give it a name." };
+  if (!MUSCLE_GROUPS.includes(muscle) || !PATTERNS.includes(pattern)) {
+    return { ok: false as const, error: "Pick a muscle and a movement." };
+  }
+  if (!PROFILES.includes(profile)) {
+    return { ok: false as const, error: "Pick a training role." };
+  }
+  let instructionUrl: string | null = null;
+  if (video) {
+    instructionUrl = toEmbedUrl(video);
+    if (!instructionUrl) {
+      return {
+        ok: false as const,
+        error: "Couldn't read that YouTube link — paste the video's URL.",
+      };
+    }
+  }
+
+  // RLS ("exercises update own") limits this to the caller's non-global rows.
+  const { error } = await supabase
+    .from("exercises")
+    .update({
+      name,
+      muscle_group: muscle,
+      movement_pattern: pattern,
+      rep_profile: profile,
+      unit: profile === "timed" ? "s" : "kg",
+      equipment,
+      instruction_url: instructionUrl,
+    })
+    .eq("id", id)
+    .eq("is_global", false);
+  if (error) return { ok: false as const, error: "Couldn't save — try again." };
+
+  revalidatePath("/program");
+  return { ok: true as const };
+}
+
+/**
+ * Delete one of your own custom exercises. It's first pulled from your
+ * program; if it has logged history (set_logs FK) it can't be removed
+ * without destroying that history, so we keep it and say so.
+ */
+export async function deleteCustomExercise(exerciseId: string) {
+  const { supabase } = await requireUserId();
+  if (!UUID_RE.test(exerciseId)) {
+    return { ok: false as const, error: "Unknown exercise." };
+  }
+
+  // If it was ever logged, deleting would orphan history — refuse cleanly.
+  const { count } = await supabase
+    .from("set_logs")
+    .select("id", { count: "exact", head: true })
+    .eq("exercise_id", exerciseId);
+  if ((count ?? 0) > 0) {
+    return {
+      ok: false as const,
+      error: "You've logged this one — edit it instead, so your history stays.",
+    };
+  }
+
+  // Pull it out of the program (RLS limits to the caller's own rows), then
+  // delete the exercise itself (RLS limits to the caller's non-global rows).
+  await supabase.from("program_exercises").delete().eq("exercise_id", exerciseId);
+  const { error } = await supabase
+    .from("exercises")
+    .delete()
+    .eq("id", exerciseId)
+    .eq("is_global", false);
+  if (error) return { ok: false as const, error: "Couldn't delete — try again." };
+
+  revalidatePath("/program");
+  return { ok: true as const };
+}
+
 export async function swapExercise(programExerciseId: string, newExerciseId: string) {
   const { supabase } = await requireUserId();
   // RLS guarantees she can only touch rows in her own program.
