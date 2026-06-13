@@ -689,9 +689,11 @@ export async function createGoal(formData: FormData) {
   if ((count ?? 0) >= 3) return; // max 3 active goals
 
   const type = String(formData.get("type"));
-  if (!["body_weight", "exercise_pr", "consistency"].includes(type)) return;
+  if (!["body_weight", "exercise_pr", "consistency", "fitness_score"].includes(type)) return;
   const target = parseFloat(String(formData.get("target") ?? "").replace(",", "."));
   if (!Number.isFinite(target) || target <= 0) return;
+  // A fitness score lives on a 0–10 scale.
+  if (type === "fitness_score" && target > 10) return;
   const exerciseId = String(formData.get("exercise_id") ?? "") || null;
   const deadline = String(formData.get("deadline") ?? "") || null;
   if (type === "exercise_pr" && !exerciseId) return;
@@ -706,6 +708,16 @@ export async function createGoal(formData: FormData) {
       .limit(1)
       .maybeSingle();
     baseline = data?.weight_kg ?? null;
+  } else if (type === "fitness_score") {
+    const { data } = await supabase
+      .from("fitness_reports")
+      .select("overall_score")
+      .eq("user_id", userId)
+      .eq("assessable", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    baseline = (data?.overall_score as number | null) ?? null;
   }
 
   await supabase.from("goals").insert({

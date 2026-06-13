@@ -19,21 +19,30 @@ export default async function GoalsPage() {
   const dayIds = program?.days.map((d) => d.id) ?? [];
   const logs = program ? await getCycleLogs(supabase, user.id, dayIds) : [];
 
-  const [{ data: bw }, { data: prs }, { data: library }] = await Promise.all([
-    supabase
-      .from("body_weight")
-      .select("weight_kg")
-      .eq("user_id", user.id)
-      .order("date", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("set_logs")
-      .select("exercise_id, weight_kg, workout_log:workout_logs!inner(user_id)")
-      .eq("workout_log.user_id", user.id)
-      .not("weight_kg", "is", null),
-    supabase.from("exercises").select("*").eq("is_global", true).order("name"),
-  ]);
+  const [{ data: bw }, { data: prs }, { data: library }, { data: report }] =
+    await Promise.all([
+      supabase
+        .from("body_weight")
+        .select("weight_kg")
+        .eq("user_id", user.id)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("set_logs")
+        .select("exercise_id, weight_kg, workout_log:workout_logs!inner(user_id)")
+        .eq("workout_log.user_id", user.id)
+        .not("weight_kg", "is", null),
+      supabase.from("exercises").select("*").eq("is_global", true).order("name"),
+      supabase
+        .from("fitness_reports")
+        .select("overall_score")
+        .eq("user_id", user.id)
+        .eq("assessable", true)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
 
   const prByExercise = new Map<string, number>();
   for (const row of (prs ?? []) as { exercise_id: string; weight_kg: number }[]) {
@@ -44,6 +53,7 @@ export default async function GoalsPage() {
     latestBodyWeight: bw?.weight_kg ?? null,
     prByExercise,
     workoutDates: logs.map((l) => l.completed_at),
+    latestFitnessScore: (report?.overall_score as number | null) ?? null,
   };
 
   // Auto-check goals against logs; persist newly-hit ones.
