@@ -1141,13 +1141,13 @@ export async function generateFitnessReport() {
 }
 
 /**
- * Builds the report's plan into the active program: for each prioritized
- * focus muscle (biggest problems first), adds a pump-tier accessory in that
- * muscle group via the same same-muscle guardrail as the swap engine.
- * Compounds are never touched. Work is spread across days — a day that
- * already got an addition this round is deprioritized — so no single day
- * gets overloaded. Returns the human-readable changes with the coach's
- * reason where the plan supplied one.
+ * Builds the report's plan into the active program as a separate, replaceable
+ * "goal focus" block. Re-applying REPLACES the previous focus block rather
+ * than stacking on top of it (otherwise repeated taps pile up accessories).
+ * For each prioritized focus muscle (biggest problems first) it adds one
+ * pump-tier accessory in that muscle group, spread across days so no day is
+ * overloaded. Base exercises and compounds are never touched. Returns the
+ * additions (with the coach's reason) and anything the rebuild replaced.
  */
 export async function applyWeakPointFocus(reportId: string) {
   const { supabase, userId } = await requireUserId();
@@ -1174,6 +1174,31 @@ export async function applyWeakPointFocus(reportId: string) {
   const { getActiveProgram } = await import("@/lib/data");
   const program = await getActiveProgram(supabase, userId);
   if (!program) return { ok: false as const, error: "No active program." };
+  const dayIds = program.days.map((d) => d.id);
+
+  // Clear the previous goal-focus block first, capturing it so we can show
+  // what was replaced. Removing these rows never touches logged history
+  // (set_logs reference the exercise, not the program slot).
+  const { data: oldFocus } = await supabase
+    .from("program_exercises")
+    .select("exercise_id, exercise:exercises(name)")
+    .in("program_day_id", dayIds)
+    .eq("is_focus", true);
+  type FocusRow = {
+    exercise_id: string;
+    exercise: { name: string } | { name: string }[] | null;
+  };
+  const oldFocusRows = (oldFocus ?? []) as FocusRow[];
+  const replaced = oldFocusRows
+    .map((r) => (Array.isArray(r.exercise) ? r.exercise[0]?.name : r.exercise?.name))
+    .filter((n): n is string => !!n);
+  if (oldFocus?.length) {
+    await supabase
+      .from("program_exercises")
+      .delete()
+      .in("program_day_id", dayIds)
+      .eq("is_focus", true);
+  }
 
   const { data: lib } = await supabase
     .from("exercises")
@@ -1181,11 +1206,18 @@ export async function applyWeakPointFocus(reportId: string) {
     .eq("is_global", true);
   type Ex = { id: string; name: string; muscle_group: string; rep_profile: string };
   const library = (lib ?? []) as Ex[];
-  const inProgram = new Set(
-    program.days.flatMap((d) => d.exercises.map((pe) => pe.exercise_id))
-  );
 
-  // Track additions per day so the block stays balanced across the week.
+  // Base = everything except the focus block we just cleared, so a new pick
+  // never duplicates a base exercise (but may re-use a just-removed one).
+  const oldFocusExIds = new Set(oldFocusRows.map((r) => r.exercise_id));
+  const baseDays = program.days.map((d) => ({
+    id: d.id,
+    name: d.name,
+    base: d.exercises.filter((pe) => !oldFocusExIds.has(pe.exercise_id)),
+  }));
+  const inProgram = new Set(
+    baseDays.flatMap((d) => d.base.map((pe) => pe.exercise_id))
+  );
   const addedPerDay = new Map<string, number>();
 
   const changes: string[] = [];
@@ -1201,23 +1233,27 @@ export async function applyWeakPointFocus(reportId: string) {
 
     // Prefer the day that already trains this muscle (coherent), then the
     // one with the fewest new additions, then the lightest overall.
-    const trains = (d: (typeof program.days)[number]) =>
-      d.exercises.filter((pe) => pe.exercise.muscle_group === muscle).length;
-    const day = [...program.days].sort((a, b) => {
+    const trains = (d: (typeof baseDays)[number]) =>
+      d.base.filter((pe) => pe.exercise.muscle_group === muscle).length;
+    const day = [...baseDays].sort((a, b) => {
       if (trains(b) !== trains(a)) return trains(b) - trains(a);
       const na = addedPerDay.get(a.id) ?? 0;
       const nb = addedPerDay.get(b.id) ?? 0;
       if (na !== nb) return na - nb;
-      return a.exercises.length - b.exercises.length;
+      return a.base.length - b.base.length;
     })[0];
     if (!day) continue;
 
-    const nextSort = Math.max(0, ...day.exercises.map((x) => x.sort)) + 1;
+    const nextSort =
+      Math.max(0, ...day.base.map((x) => x.sort)) +
+      1 +
+      (addedPerDay.get(day.id) ?? 0);
     const { error } = await supabase.from("program_exercises").insert({
       program_day_id: day.id,
       exercise_id: pick.id,
       sort: nextSort,
       sets: 3,
+      is_focus: true,
     });
     if (error) continue;
     inProgram.add(pick.id);
@@ -1234,7 +1270,7 @@ export async function applyWeakPointFocus(reportId: string) {
   }
   revalidatePath("/program");
   revalidatePath("/report");
-  return { ok: true as const, changes };
+  return { ok: true as const, changes, replaced };
 }
 
 // -------------------------------------------------------------------- auth

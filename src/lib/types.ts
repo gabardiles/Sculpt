@@ -146,6 +146,8 @@ export interface ProgramExercise {
   sets: number;
   /** Coach prescription shown verbatim — replaces the derived rep target. */
   scheme: string | null;
+  /** True when added by the fitness-report weak-point plan (goal-focus block). */
+  is_focus: boolean;
   exercise?: Exercise;
 }
 
