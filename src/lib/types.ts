@@ -65,6 +65,8 @@ export interface FitnessReport {
   focus_areas: string[];
   /** App muscle groups to bias the weak-point plan toward. */
   focus_muscles: string[];
+  /** Prioritized coach's plan: muscle group + why, biggest problems first. */
+  plan: { muscle: string; reason: string }[];
   summary: string | null;
   next_level_advice: string | null;
   body_weight_kg: number | null;

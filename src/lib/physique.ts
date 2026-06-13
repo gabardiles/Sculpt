@@ -53,6 +53,8 @@ export interface PhysiqueResult {
   strengths: string[];
   focus_areas: string[];
   focus_muscles: string[];
+  /** Prioritized coach's plan — biggest problems first, toward the goal. */
+  plan: { muscle: string; reason: string }[];
   summary: string;
   next_level_advice: string;
 }
@@ -113,6 +115,24 @@ export const RESPONSE_SCHEMA = {
       items: { type: "string", enum: [...FOCUS_MUSCLES] },
       description: "1–3 app muscle groups to bias training toward.",
     },
+    plan: {
+      type: "array",
+      description:
+        "A professional, prioritized progression plan: 2–4 steps, biggest weaknesses first, but balanced toward their goal aesthetic.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          muscle: { type: "string", enum: [...FOCUS_MUSCLES] },
+          reason: {
+            type: "string",
+            description:
+              "One concrete sentence: why training this advances their look.",
+          },
+        },
+        required: ["muscle", "reason"],
+      },
+    },
     summary: {
       type: "string",
       description: "2–3 warm sentences summarizing where they are.",
@@ -132,6 +152,7 @@ export const RESPONSE_SCHEMA = {
     "strengths",
     "focus_areas",
     "focus_muscles",
+    "plan",
     "summary",
     "next_level_advice",
   ],
@@ -181,6 +202,15 @@ export function normalizePhysiqueResult(raw: Partial<PhysiqueResult>): PhysiqueR
     focus_muscles: (Array.isArray(raw.focus_muscles) ? raw.focus_muscles : [])
       .filter((m) => FOCUS_MUSCLES.includes(m as (typeof FOCUS_MUSCLES)[number]))
       .slice(0, 3),
+    plan: (Array.isArray(raw.plan) ? raw.plan : [])
+      .filter((p) =>
+        FOCUS_MUSCLES.includes(p?.muscle as (typeof FOCUS_MUSCLES)[number])
+      )
+      .slice(0, 4)
+      .map((p) => ({
+        muscle: p.muscle,
+        reason: String(p.reason ?? "").slice(0, 200),
+      })),
     summary: String(raw.summary ?? "").slice(0, 600),
     next_level_advice: String(raw.next_level_advice ?? "").slice(0, 600),
   };
@@ -219,7 +249,9 @@ Score these six axes (use exactly these keys):
 
 If the photos do not clearly show the body (face-only selfie, heavy clothing, bad framing), set assessable=false, set scores to 0, and use the summary to ask for a clear, well-lit training photo.
 
-For focus_muscles, pick the 1–3 app muscle groups whose training would most move the weak points, from: ${FOCUS_MUSCLES.join(", ")}.`;
+For focus_muscles, pick the 1–3 app muscle groups whose training would most move the weak points, from: ${FOCUS_MUSCLES.join(", ")}.
+
+For plan, act like a professional coach writing their next training block: 2–4 prioritized steps that take them toward their goal look. Lead with the biggest problems (the lowest-scoring areas), but keep the block balanced — don't pile everything onto one area. Each step names one muscle group (from the same list) and one concrete sentence on why training it advances their physique. Order the steps most-important first.`;
 
   const goalLine = input.goalNote
     ? `Their stated dream focus: "${input.goalNote}". Weigh this in the focus areas and advice.`
@@ -244,7 +276,11 @@ For focus_muscles, pick the 1–3 app muscle groups whose training would most mo
               type: "image" as const,
               source: {
                 type: "base64" as const,
-                media_type: img.mediaType as "image/jpeg" | "image/png" | "image/webp",
+                media_type: img.mediaType as
+                  | "image/jpeg"
+                  | "image/png"
+                  | "image/gif"
+                  | "image/webp",
                 data: img.base64,
               },
             })),

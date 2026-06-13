@@ -39,8 +39,22 @@ const ERROR_COPY: Record<string, string> = {
     "The report engine isn't switched on yet. Once the app's AI key is set, this works instantly.",
   needs_setup: "Add your details first.",
   needs_photo: "Add a progress photo first — then I can read it.",
+  unsupported_format:
+    "Your photos are in a format I can't read yet (iPhone HEIC, usually). In your phone's camera settings switch the format to 'Most Compatible' (JPEG), or upload a JPG/PNG, then try again.",
   analysis_failed: "Couldn't read that just now. Try again in a moment.",
   save_failed: "Couldn't save the report. Try again.",
+};
+
+const MUSCLE_LABEL: Record<string, string> = {
+  glutes: "Glutes",
+  hamstrings: "Hamstrings",
+  quads: "Quads",
+  back: "Back",
+  chest: "Chest",
+  shoulders: "Shoulders",
+  arms: "Arms",
+  core: "Core",
+  calves: "Calves",
 };
 
 export function ReportClient({
@@ -84,7 +98,9 @@ export function ReportClient({
       setApplied(null);
       router.refresh();
     } else {
-      setError(ERROR_COPY[res.error] ?? "Something went wrong.");
+      const base = ERROR_COPY[res.error] ?? "Something went wrong.";
+      const detail = "detail" in res && res.detail ? ` (${res.detail})` : "";
+      setError(base + detail);
     }
   }
 
@@ -309,13 +325,15 @@ export function ReportClient({
                 </section>
               )}
 
-              {/* one-tap weak-point plan */}
-              {latest.focus_muscles.length > 0 && (
+              {/* the coach's plan — prioritized, build it in one tap */}
+              {((latest.plan?.length ?? 0) > 0 ||
+                latest.focus_muscles.length > 0) && (
                 <section className="mt-5">
+                  <Eyebrow>YOUR PLAN</Eyebrow>
                   {applied ? (
-                    <Card className="border-sage/50 p-4">
+                    <Card className="mt-2 border-sage/50 p-4">
                       <p className="flex items-center gap-2 text-sm font-medium text-sage-deep">
-                        <Check size={16} strokeWidth={2} /> Added to your program
+                        <Check size={16} strokeWidth={2} /> Built into your program
                       </p>
                       <ul className="mt-2 flex flex-col gap-1">
                         {applied.map((c, i) => (
@@ -331,20 +349,54 @@ export function ReportClient({
                       </Link>
                     </Card>
                   ) : (
-                    <Card className="p-4">
-                      <p className="text-sm font-light leading-relaxed text-ink-soft">
-                        Want your training to chase these weak points? I&apos;ll
-                        add targeted accessory work to your program — same big
-                        lifts, sharper focus.
-                      </p>
+                    <Card className="mt-2 p-4">
+                      {(latest.plan?.length ?? 0) > 0 ? (
+                        <>
+                          <p className="text-sm font-light leading-relaxed text-ink-soft">
+                            A professional next block — biggest gaps first,
+                            balanced toward your goal look:
+                          </p>
+                          <ol className="mt-3 flex flex-col gap-2.5">
+                            {latest.plan.map((p, i) => (
+                              <li key={i} className="flex gap-3">
+                                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blush/40 font-mono text-[11px] text-blush-deep">
+                                  {i + 1}
+                                </span>
+                                <span className="text-sm leading-relaxed">
+                                  <span className="font-medium">
+                                    {MUSCLE_LABEL[p.muscle] ?? p.muscle}
+                                  </span>
+                                  <span className="font-light text-ink-soft">
+                                    {" "}
+                                    — {p.reason}
+                                  </span>
+                                </span>
+                              </li>
+                            ))}
+                          </ol>
+                        </>
+                      ) : (
+                        <p className="text-sm font-light leading-relaxed text-ink-soft">
+                          Want your training to chase these weak points?
+                          I&apos;ll add targeted accessory work — same big lifts,
+                          sharper focus.
+                        </p>
+                      )}
                       <PillButton
-                        className="mt-3 w-full"
+                        className="mt-4 w-full"
                         disabled={applying}
                         onClick={applyFocus}
                       >
                         <Wand2 size={16} strokeWidth={1.6} />
-                        {applying ? "Building…" : "Focus my weak points"}
+                        {applying
+                          ? "Building…"
+                          : (latest.plan?.length ?? 0) > 0
+                            ? "Build this plan into my program"
+                            : "Focus my weak points"}
                       </PillButton>
+                      <p className="mt-2 text-center text-xs font-light text-ink-soft">
+                        Adds accessory work only — your main lifts stay put.
+                      </p>
                     </Card>
                   )}
                 </section>
@@ -447,9 +499,9 @@ export function ReportClient({
               <span className="eyebrow">Weight (kg)</span>
               <input
                 name="weight"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="0"
+                pattern="[0-9.,]*"
                 defaultValue={latestWeight ?? ""}
                 placeholder="70"
                 className="mt-1 h-12 w-full rounded-full border border-ink/15 bg-surface px-4 text-sm outline-none focus:border-blush-deep"

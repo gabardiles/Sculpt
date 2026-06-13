@@ -91,9 +91,9 @@ export default async function OnboardingPage() {
                 <span className="eyebrow">Weight</span>
                 <input
                   name="weight"
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min="0"
+                  pattern="[0-9.,]*"
                   placeholder="70"
                   className="h-12 rounded-full border border-ink/15 bg-surface px-4 text-base outline-none focus:border-blush-deep"
                 />

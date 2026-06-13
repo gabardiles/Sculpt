@@ -1058,23 +1058,39 @@ export async function generateFitnessReport() {
   const paths = ((photos ?? []) as { storage_path: string }[]).map((p) => p.storage_path);
   if (!paths.length) return { ok: false as const, error: "needs_photo" };
 
-  // Download the private photos and inline them as base64 for the vision call.
+  // Download the private photos and inline them as base64. Claude vision only
+  // reads jpeg/png/gif/webp — iPhone HEIC photos must be flagged, not sent
+  // (they'd 400 and look like a generic failure).
+  const SUPPORTED = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  const extType: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+  };
   const images: { base64: string; mediaType: string }[] = [];
+  let skippedUnsupported = false;
   for (const path of paths) {
     const { data: blob } = await supabase.storage.from("progress-photos").download(path);
     if (!blob) continue;
+    let mediaType = blob.type;
+    if (!SUPPORTED.includes(mediaType)) {
+      mediaType = extType[path.split(".").pop()?.toLowerCase() ?? ""] ?? "";
+    }
+    if (!SUPPORTED.includes(mediaType)) {
+      skippedUnsupported = true;
+      continue;
+    }
     const buf = Buffer.from(await blob.arrayBuffer());
-    const mediaType =
-      blob.type && /^image\/(jpeg|png|webp)$/.test(blob.type)
-        ? blob.type
-        : path.endsWith(".png")
-          ? "image/png"
-          : path.endsWith(".webp")
-            ? "image/webp"
-            : "image/jpeg";
     images.push({ base64: buf.toString("base64"), mediaType });
   }
-  if (!images.length) return { ok: false as const, error: "needs_photo" };
+  if (!images.length) {
+    return {
+      ok: false as const,
+      error: skippedUnsupported ? "unsupported_format" : "needs_photo",
+    };
+  }
 
   const outcome = await analyzePhysique({
     gender: profile.gender as "female" | "male" | "unspecified",
@@ -1088,6 +1104,8 @@ export async function generateFitnessReport() {
     return {
       ok: false as const,
       error: outcome.reason === "not_configured" ? "not_configured" : "analysis_failed",
+      // Surface the real reason so a failure can actually be diagnosed.
+      detail: outcome.reason === "error" ? outcome.message?.slice(0, 200) : undefined,
     };
   }
 
@@ -1104,6 +1122,7 @@ export async function generateFitnessReport() {
       strengths: r.strengths,
       focus_areas: r.focus_areas,
       focus_muscles: r.focus_muscles,
+      plan: r.plan,
       summary: r.summary,
       next_level_advice: r.next_level_advice,
       body_weight_kg: (bw?.weight_kg as number | null) ?? null,
@@ -1122,23 +1141,35 @@ export async function generateFitnessReport() {
 }
 
 /**
- * One-tap weak-point focus: adds pump-tier accessories for the report's
- * focus muscles into the active program, using the same same-muscle
- * guardrail as the swap engine. Compounds are never touched; up to three
- * accessories are added, each to the day that already trains that muscle
- * most (else the lightest day). Returns the human-readable changes.
+ * Builds the report's plan into the active program: for each prioritized
+ * focus muscle (biggest problems first), adds a pump-tier accessory in that
+ * muscle group via the same same-muscle guardrail as the swap engine.
+ * Compounds are never touched. Work is spread across days — a day that
+ * already got an addition this round is deprioritized — so no single day
+ * gets overloaded. Returns the human-readable changes with the coach's
+ * reason where the plan supplied one.
  */
 export async function applyWeakPointFocus(reportId: string) {
   const { supabase, userId } = await requireUserId();
 
   const { data: report } = await supabase
     .from("fitness_reports")
-    .select("focus_muscles")
+    .select("plan, focus_muscles")
     .eq("id", reportId)
     .eq("user_id", userId)
     .maybeSingle();
-  const focusMuscles = ((report?.focus_muscles ?? []) as string[]).slice(0, 3);
-  if (!focusMuscles.length) return { ok: false as const, error: "No focus areas." };
+
+  // Prefer the prioritized plan (muscle + reason); fall back to the bare
+  // focus-muscle list on older reports.
+  const planRows = (report?.plan ?? []) as { muscle: string; reason: string }[];
+  const targets: { muscle: string; reason: string | null }[] = planRows.length
+    ? planRows.map((p) => ({ muscle: p.muscle, reason: p.reason ?? null }))
+    : ((report?.focus_muscles ?? []) as string[]).map((m) => ({
+        muscle: m,
+        reason: null,
+      }));
+  const ordered = targets.slice(0, 4);
+  if (!ordered.length) return { ok: false as const, error: "No focus areas." };
 
   const { getActiveProgram } = await import("@/lib/data");
   const program = await getActiveProgram(supabase, userId);
@@ -1154,9 +1185,12 @@ export async function applyWeakPointFocus(reportId: string) {
     program.days.flatMap((d) => d.exercises.map((pe) => pe.exercise_id))
   );
 
+  // Track additions per day so the block stays balanced across the week.
+  const addedPerDay = new Map<string, number>();
+
   const changes: string[] = [];
-  for (const muscle of focusMuscles) {
-    if (changes.length >= 3) break;
+  for (const { muscle, reason } of ordered) {
+    if (changes.length >= 4) break;
     const pick = library.find(
       (e) =>
         e.muscle_group === muscle &&
@@ -1165,15 +1199,17 @@ export async function applyWeakPointFocus(reportId: string) {
     );
     if (!pick) continue;
 
-    // The day that already trains this muscle most keeps the program coherent;
-    // fall back to the day with the fewest exercises.
-    const score = (d: (typeof program.days)[number]) =>
+    // Prefer the day that already trains this muscle (coherent), then the
+    // one with the fewest new additions, then the lightest overall.
+    const trains = (d: (typeof program.days)[number]) =>
       d.exercises.filter((pe) => pe.exercise.muscle_group === muscle).length;
-    const day =
-      [...program.days].sort((a, b) => score(b) - score(a))[0] &&
-      score([...program.days].sort((a, b) => score(b) - score(a))[0]) > 0
-        ? [...program.days].sort((a, b) => score(b) - score(a))[0]
-        : [...program.days].sort((a, b) => a.exercises.length - b.exercises.length)[0];
+    const day = [...program.days].sort((a, b) => {
+      if (trains(b) !== trains(a)) return trains(b) - trains(a);
+      const na = addedPerDay.get(a.id) ?? 0;
+      const nb = addedPerDay.get(b.id) ?? 0;
+      if (na !== nb) return na - nb;
+      return a.exercises.length - b.exercises.length;
+    })[0];
     if (!day) continue;
 
     const nextSort = Math.max(0, ...day.exercises.map((x) => x.sort)) + 1;
@@ -1185,7 +1221,12 @@ export async function applyWeakPointFocus(reportId: string) {
     });
     if (error) continue;
     inProgram.add(pick.id);
-    changes.push(`Added ${pick.name} to ${day.name}`);
+    addedPerDay.set(day.id, (addedPerDay.get(day.id) ?? 0) + 1);
+    changes.push(
+      reason
+        ? `${pick.name} → ${day.name} · ${reason}`
+        : `Added ${pick.name} to ${day.name}`
+    );
   }
 
   if (!changes.length) {
