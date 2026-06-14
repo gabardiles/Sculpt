@@ -49,7 +49,11 @@ Sculpt/
     Theme/       Design tokens (sculpt + spartan palettes), ThemeManager
     DesignSystem/ GlassCard, PillButton, ProgressRing, MonoText, Sparkline…
     Notifications/ Haptics, LocalNotifications, PushNotifications, AppDelegate
+    Health/      HealthKitManager (workouts + body weight)
+    LiveActivity/ RestActivityController (starts the Dynamic Island timer)
   Data/          Repository (reads ← data.ts) + Repository+Writes (← actions.ts)
+Shared/          Compiled into BOTH app + widget (RestActivityAttributes, SharedStore)
+SculptWidgets/   Widget extension — Next-session widget + rest Live Activity
   Features/
     Root/        SculptApp (@main), RootView router, MainTabView
     Auth/        Login (email OTP), Onboarding
@@ -94,7 +98,22 @@ an app binary, or Apple-account provisioning:
 | **Local notifications** (rest-timer-done, training reminders) | ✅ live, no account needed |
 | **Push for feed** (cheer/comment while app closed) | 🟡 scaffolded — see below |
 | **HealthKit sync** (workouts + body weight) | ✅ coded — enable the capability in Xcode |
-| Live Activity (Dynamic Island rest timer) + widget | ⏳ planned |
+| **Live Activity** (Dynamic Island rest timer) + **home-screen widget** | ✅ coded — `SculptWidgets` extension; add App Group in Xcode |
+
+### Enabling the widget + Live Activity
+
+The widget extension target (`SculptWidgets/`) ships a **Next session** widget
+(home + lock screen) and the **rest-timer Live Activity** (Lock Screen +
+Dynamic Island). The rest timer starts/ends automatically during a session;
+the widget reads a snapshot the app writes to a shared **App Group**.
+
+`xcodegen generate` already creates and embeds the extension. To make the
+widget show live data (rather than a placeholder), add the **App Group**
+capability — the same group id `group.com.sculpt.app` — to *both* the `Sculpt`
+and `SculptWidgets` targets in Xcode → Signing & Capabilities. Live Activities
+need no extra setup beyond `NSSupportsLiveActivities` (already in Info.plist).
+Until the App Group is added, `SharedStore` falls back to local defaults and the
+widget shows a tasteful "Open Sculpt" placeholder — nothing breaks.
 
 ### Enabling HealthKit
 

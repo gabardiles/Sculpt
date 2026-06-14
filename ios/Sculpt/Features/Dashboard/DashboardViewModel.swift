@@ -1,4 +1,5 @@
 import Foundation
+import WidgetKit
 
 /// Loads the dashboard's data and derives the week state with the same engines
 /// the web app uses. Mirrors the heavy server component in src/app/(app)/page.tsx.
@@ -21,6 +22,7 @@ final class DashboardViewModel: ObservableObject {
     @Published var volumeSpark: [Double] = []
     @Published var report: FitnessReport?
     @Published var goalRows: [GoalRowItem] = []
+    @Published var weekProgress = 0.0
 
     struct DayRowItem: Identifiable {
         let id: String
@@ -93,6 +95,8 @@ final class DashboardViewModel: ObservableObject {
             headerLine = "WEEK \(s.weekIndex) OF \(s.totalWeeks) · \(ScheduleLabels.intensity[s.intensity] ?? "")"
             let weekDayModels = program.days.filter { $0.day.weekIndex == s.weekIndex }
             buildDayRows(weekDayModels, doneIds: doneIds, nextId: nextId, fixed: true)
+            weekProgress = weekDayModels.isEmpty ? 0
+                : Double(weekDayModels.filter { doneIds.contains($0.day.id) }.count) / Double(weekDayModels.count)
         } else {
             let s = CycleEngine.deriveCycleState(logs: logs, orderedDayIds: program.orderedDayIds,
                                                  cycleFloor: program.program.cycleFloor, closures: closures)
@@ -102,6 +106,8 @@ final class DashboardViewModel: ObservableObject {
             weekComplete = s.nextDayId == nil
             headerLine = "CYCLE \(s.cycle) · WEEK \(s.weekIndex) · \(s.phase.rawValue.uppercased())"
             buildDayRows(program.days, doneIds: doneIds, nextId: nextId, fixed: false)
+            weekProgress = program.orderedDayIds.isEmpty ? 0
+                : Double(doneIds.count) / Double(program.orderedDayIds.count)
         }
         nextDay = program.days.first { $0.day.id == nextId }
 
@@ -143,6 +149,22 @@ final class DashboardViewModel: ObservableObject {
             let p = GoalMath.compute(g, ctx)
             return GoalRowItem(id: g.id, label: GoalMath.label(g), progress: p.progress, hit: p.hit)
         }
+
+        updateWidgetSnapshot()
+    }
+
+    /// Push the "next session" snapshot to the shared store so the home-screen
+    /// widget reflects the current week. Cheap and idempotent.
+    private func updateWidgetSnapshot() {
+        let snapshot = SharedStore.NextSession(
+            dayName: nextDay?.day.name ?? "Week complete",
+            headerLine: headerLine,
+            exercises: nextDay?.exercises.count ?? 0,
+            progress: weekComplete ? 1 : weekProgress,
+            theme: profile?.theme?.rawValue ?? "sculpt"
+        )
+        SharedStore.writeNextSession(snapshot)
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func buildDayRows(_ days: [DayWithExercises], doneIds: Set<String>, nextId: String?, fixed: Bool) {

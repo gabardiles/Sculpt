@@ -30,11 +30,13 @@ targets:
     platform: iOS
     sources:
       - path: Sculpt
+      - path: Shared          # RestActivityAttributes + SharedStore (also in the widget)
     resources:
       - path: Sculpt/Resources
     dependencies:
       - package: Supabase
         product: Supabase
+      - target: SculptWidgets # embeds the widget + Live Activity extension
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app
@@ -45,6 +47,20 @@ targets:
     configFiles:
       Debug: Sculpt/Config.xcconfig
       Release: Sculpt/Config.xcconfig
+
+  SculptWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: SculptWidgets
+      - path: Shared          # shared Live Activity attributes + App Group store
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app.widgets
+        INFOPLIST_FILE: SculptWidgets/Info.plist
+        # The App Group + Live Activity capabilities are added in Xcode's
+        # Signing & Capabilities (see README) — that auto-manages entitlements
+        # so the default build doesn't require pre-provisioned App IDs.
 
   SculptTests:
     type: bundle.unit-test

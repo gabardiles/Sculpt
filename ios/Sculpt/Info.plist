@@ -33,6 +33,9 @@
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
 	</dict>
+	<!-- Rest-timer Live Activity (Dynamic Island / Lock Screen) -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<!-- Camera + library for progress photos and feed photos -->
 	<key>NSCameraUsageDescription</key>
 	<string>Take progress photos to track how your training is changing.</string>

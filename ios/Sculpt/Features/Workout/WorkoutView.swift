@@ -49,6 +49,7 @@ struct WorkoutView: View {
                 RestTimer(until: until, nextName: restNext) {
                     restUntil = nil
                     LocalNotifications.shared.cancelRestEnd()
+                    RestActivityController.shared.end()
                 }
                 .padding(.top, 8)
             }
@@ -226,6 +227,9 @@ struct WorkoutView: View {
             restUntil = until
             // Buzz when rest ends even if she's left the app mid-session.
             LocalNotifications.shared.scheduleRestEnd(at: until, nextName: next?.name)
+            // Live Activity: rest timer on the Lock Screen / Dynamic Island.
+            RestActivityController.shared.start(dayName: vm.day.day.name, endDate: until,
+                                                nextExercise: next?.name ?? "Next set")
         }
     }
 
@@ -354,6 +358,7 @@ struct WorkoutView: View {
             feelOpen = false; celebrating = true
             Haptics.celebrate()
             LocalNotifications.shared.cancelRestEnd()
+            RestActivityController.shared.end()
             LocalNotifications.shared.bumpAfterWorkout()
             // Mirror the session into Apple Health (best-effort, opt-in). The
             // first finished workout is when we ask for Health permission.
@@ -377,5 +382,9 @@ struct WorkoutView: View {
         sharing = false
     }
 
-    private func leave() { dismiss() }
+    private func leave() {
+        LocalNotifications.shared.cancelRestEnd()
+        RestActivityController.shared.end()
+        dismiss()
+    }
 }
