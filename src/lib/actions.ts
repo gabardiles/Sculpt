@@ -988,7 +988,36 @@ export async function switchProgram(templateName: string) {
     : { ok: false as const, error: "Template not found — run the latest SQL." };
 }
 
-// ----------------------------------------------------------- fitness report
+/**
+ * Restart the current program from scratch: archive the customized copy and
+ * re-clone its own template fresh. Wipes every added/swapped/goal-focus
+ * exercise and resets to the beginning (a fresh program has no logs, so the
+ * cycle derives back to 1 / week 1). Logged history is kept on the archived
+ * program, so PBs and trends survive.
+ */
+export async function restartProgram() {
+  const { supabase, userId } = await requireUserId();
+  const { data: current } = await supabase
+    .from("programs")
+    .select("name")
+    .eq("user_id", userId)
+    .eq("active", true)
+    .maybeSingle();
+  if (!current?.name) return { ok: false as const, error: "No active program." };
+
+  await supabase
+    .from("programs")
+    .update({ active: false })
+    .eq("user_id", userId)
+    .eq("active", true);
+  const ok = await cloneTemplateProgram(supabase, userId, current.name as string);
+  revalidatePath("/", "layout");
+  revalidatePath("/program");
+  return ok
+    ? { ok: true as const }
+    : { ok: false as const, error: "Couldn't rebuild — run the latest SQL." };
+}
+
 
 /** One-time (editable) setup for the physique report: gender, height, goal. */
 export async function saveFitnessProfile(formData: FormData) {

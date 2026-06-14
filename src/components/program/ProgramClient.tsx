@@ -24,6 +24,7 @@ import {
   deleteCustomExercise,
   removeExercise,
   resetCycle,
+  restartProgram,
   swapExercise,
   switchProgram,
 } from "@/lib/actions";
@@ -134,6 +135,7 @@ export function ProgramClient({
     else setCreateError(res.error);
   }
   const [confirmSwitch, setConfirmSwitch] = useState<string | null>(null);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const [expandedWeek, setExpandedWeek] = useState<number | null>(
     fixed?.currentWeekIndex ?? null
   );
@@ -252,6 +254,15 @@ export function ProgramClient({
         )}
       </li>
     );
+  }
+
+  async function doRestart() {
+    if (busy) return;
+    setBusy(true);
+    await restartProgram();
+    setConfirmRestart(false);
+    setMenuOpen(false);
+    setBusy(false);
   }
 
   async function doReset() {
@@ -669,13 +680,13 @@ export function ProgramClient({
         </section>
       )}
 
-      {/* small menu — manual reset lives here, out of the way */}
+      {/* small menu — manual reset / restart live here, out of the way */}
       <Sheet open={menuOpen} onClose={() => setMenuOpen(false)} title="Program">
         <div className="flex flex-col gap-3 pb-2">
           {fixed ? (
             <p className="text-sm font-light text-ink-soft">
-              This program runs on a fixed 20-week schedule — there is no
-              cycle to reset. To start over, switch programs and back.
+              This program runs on a fixed 20-week schedule — there is no cycle
+              to reset.
             </p>
           ) : (
             <>
@@ -688,6 +699,52 @@ export function ProgramClient({
               </PillButton>
             </>
           )}
+
+          {/* restart — wipe every added/swapped exercise, start fresh */}
+          <div className="mt-2 border-t border-edge pt-3">
+            <p className="text-sm font-light leading-relaxed text-ink-soft">
+              {confirmRestart ? (
+                <>
+                  Restart <span className="font-medium">{program.name}</span>{" "}
+                  from scratch? Every added, swapped and goal-focus exercise is
+                  removed and the program returns to its original plan, back at
+                  the start. Your logged history stays.
+                </>
+              ) : (
+                <>
+                  Things got messy? Restart rebuilds the program from its
+                  original plan — clearing all your added and goal-focus
+                  exercises. History is kept.
+                </>
+              )}
+            </p>
+            {confirmRestart ? (
+              <div className="mt-3 flex gap-2">
+                <PillButton
+                  className="flex-1"
+                  disabled={busy}
+                  onClick={doRestart}
+                >
+                  {busy ? "Rebuilding…" : "Yes, start fresh"}
+                </PillButton>
+                <PillButton
+                  variant="ghost"
+                  onClick={() => setConfirmRestart(false)}
+                  disabled={busy}
+                >
+                  Cancel
+                </PillButton>
+              </div>
+            ) : (
+              <PillButton
+                variant="ghost"
+                className="mt-3 text-blush-deep"
+                onClick={() => setConfirmRestart(true)}
+              >
+                <Trash2 size={15} strokeWidth={1.5} /> Restart program
+              </PillButton>
+            )}
+          </div>
         </div>
       </Sheet>
 
