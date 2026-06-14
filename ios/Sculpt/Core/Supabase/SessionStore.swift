@@ -19,6 +19,16 @@ final class SessionStore: ObservableObject {
     private var watchTask: Task<Void, Never>?
 
     func start() {
+        // Instant launch: if we have a persisted session + a cached profile,
+        // route straight into the app and validate in the background — no
+        // spinner, no waiting on the network.
+        if let session = client.auth.currentSession,
+           let cached = DiskCache.load(Profile.self, key: "profile"),
+           cached.id == session.user.id.uuidString {
+            profile = cached
+            phase = (cached.name?.isEmpty == false) ? .ready(cached) : .onboarding(userId: cached.id)
+        }
+
         watchTask?.cancel()
         watchTask = Task { [weak self] in
             guard let self else { return }
@@ -50,6 +60,7 @@ final class SessionStore: ObservableObject {
                 .from("profiles").select().eq("id", value: userId).limit(1).execute().value
             let p = rows.first
             self.profile = p
+            if let p { DiskCache.save(p, key: "profile") } // for the next instant launch
             // Web onboarding gate: a profile with no name hasn't onboarded.
             if let p, let name = p.name, !name.isEmpty {
                 phase = .ready(p)
@@ -63,6 +74,8 @@ final class SessionStore: ObservableObject {
 
     func signOut() async {
         try? await client.auth.signOut()
+        DiskCache.clearAll()
+        SharedStore.writeNextSession(nil)
         phase = .signedOut
         profile = nil
     }

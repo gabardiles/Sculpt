@@ -276,8 +276,9 @@ extension Repository {
 
     func uploadProgressPhoto(userId: String, data: Data, cycle: Int, weekLabel: String) async throws {
         let path = "\(userId)/\(UUID().uuidString).jpg"
+        let jpeg = ImageProcessing.downsampledJPEG(from: data)
         try await client.storage.from("progress-photos")
-            .upload(path, data: data, options: FileOptions(contentType: "image/jpeg"))
+            .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
         struct Ins: Encodable { var userId: String; var cycleNumber: Int; var weekLabel: String; var storagePath: String }
         try await client.from("progress_photos")
             .insert(Ins(userId: userId, cycleNumber: cycle, weekLabel: weekLabel, storagePath: path))
@@ -338,8 +339,9 @@ extension Repository {
 
     func createFeedPhoto(userId: String, data: Data, caption: String?) async throws {
         let path = "\(userId)/\(UUID().uuidString).jpg"
+        let jpeg = ImageProcessing.downsampledJPEG(from: data)
         try await client.storage.from("feed-photos")
-            .upload(path, data: data, options: FileOptions(contentType: "image/jpeg"))
+            .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
         struct Ins: Encodable { var userId: String; var type: String; var body: String?; var storagePath: String }
         try await client.from("feed_posts")
             .insert(Ins(userId: userId, type: "photo", body: caption, storagePath: path)).execute()

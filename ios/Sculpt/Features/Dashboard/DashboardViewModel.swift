@@ -55,17 +55,18 @@ final class DashboardViewModel: ObservableObject {
             self.program = program
 
             let dayIds = program.orderedDayIds
+            let exerciseIds = Array(Set(program.days.flatMap { $0.exercises.map(\.exerciseId) }))
+            // One concurrent fan-out instead of staggered awaits.
             async let logsA = repo.getCycleLogs(userId, dayIds: dayIds)
             async let closuresA = repo.getWeekClosures(userId)
             async let goalsA = repo.getGoals(userId)
             async let bwA = repo.getBodyWeights(userId)
+            async let shA = repo.getSetHistory(userId, exerciseIds: exerciseIds)
             let logs = try await logsA
             let closures = try await closuresA
             let goals = try await goalsA
             let bodyWeights = try await bwA
-
-            let exerciseIds = Array(Set(program.days.flatMap { $0.exercises.map(\.exerciseId) }))
-            let setHistory = (try? await repo.getSetHistory(userId, exerciseIds: exerciseIds)) ?? []
+            let setHistory = (try? await shA) ?? []
 
             compute(program: program, logs: logs, closures: closures, goals: goals,
                     bodyWeights: bodyWeights, setHistory: setHistory)
