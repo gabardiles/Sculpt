@@ -1,0 +1,13 @@
+// Supabase connection — reuse the SAME project as the web app so web and iOS
+// share one backend. Find these under Supabase → Project Settings → API.
+//
+// NOTE: xcconfig treats `//` as a comment everywhere, which would eat the
+// `https://` in a URL. So store the host WITHOUT the scheme here and the app
+// prepends `https://` at runtime (see SupabaseConfig.swift).
+//
+// Example:
+//   SUPABASE_HOST = your-project.supabase.co
+//   SUPABASE_ANON_KEY = eyJhbGciOi...
+
+SUPABASE_HOST = your-project.supabase.co
+SUPABASE_ANON_KEY = your-anon-key
