@@ -18,6 +18,10 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
+      // Deno Edge Functions — not part of the Next.js app's lint/type scope.
+      "supabase/functions/**",
+      // Native iOS app (Swift) — nothing for ESLint here.
+      "ios/**",
     ],
   },
 ];
