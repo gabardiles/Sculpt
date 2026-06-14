@@ -243,6 +243,9 @@ extension Repository {
         try await client.from("body_weight")
             .upsert(Up(userId: userId, date: date, weightKg: weight), onConflict: "user_id,date")
             .execute()
+        // Mirror into Apple Health (best-effort, opt-in — no-ops if declined).
+        let day = Fmt.parseISO(date) ?? Date()
+        await HealthKitManager.shared.saveBodyMass(kg: weight, date: day)
     }
 
     func createGoal(userId: String, type: GoalType, target: Double, baseline: Double?,

@@ -20,6 +20,8 @@ struct WorkoutView: View {
     @State private var shareItem: PhotosPickerItem?
     @State private var shared = false
     @State private var sharing = false
+    /// When she opened the session — used to log a Health workout on finish.
+    @State private var sessionStart = Date()
 
     init(day: DayWithExercises, phase: Phase, program: ProgramWithDays?) {
         _vm = StateObject(wrappedValue: WorkoutViewModel(day: day, program: program))
@@ -353,6 +355,12 @@ struct WorkoutView: View {
             Haptics.celebrate()
             LocalNotifications.shared.cancelRestEnd()
             LocalNotifications.shared.bumpAfterWorkout()
+            // Mirror the session into Apple Health (best-effort, opt-in). The
+            // first finished workout is when we ask for Health permission.
+            if !HealthKitManager.shared.enabled {
+                _ = await HealthKitManager.shared.requestAuthorization()
+            }
+            await HealthKitManager.shared.saveStrengthWorkout(start: sessionStart, end: Date())
         }
         saving = false
     }

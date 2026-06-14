@@ -38,5 +38,10 @@
 	<string>Take progress photos to track how your training is changing.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Add progress photos and share gym wins with friends.</string>
+	<!-- Apple Health — optional workout + body-weight sync -->
+	<key>NSHealthShareUsageDescription</key>
+	<string>Read your latest body weight to keep your diary and Health in sync.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Save your completed sessions and body-weight entries to Apple Health.</string>
 </dict>
 </plist>

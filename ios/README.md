@@ -93,8 +93,19 @@ an app binary, or Apple-account provisioning:
 | **Haptics** (done / PB / cheer) | ✅ live |
 | **Local notifications** (rest-timer-done, training reminders) | ✅ live, no account needed |
 | **Push for feed** (cheer/comment while app closed) | 🟡 scaffolded — see below |
-| HealthKit sync | ⏳ planned |
+| **HealthKit sync** (workouts + body weight) | ✅ coded — enable the capability in Xcode |
 | Live Activity (Dynamic Island rest timer) + widget | ⏳ planned |
+
+### Enabling HealthKit
+
+The code is in (`Core/Health/HealthKitManager.swift`); it writes a strength
+workout on finish and mirrors body-weight entries, and asks permission the
+first time you finish a session. Everything is guarded, so the app builds and
+runs fine without the capability — Health just stays inert. To turn it on:
+in Xcode → target → Signing & Capabilities → **+ Capability → HealthKit** (this
+wires `Sculpt/Sculpt.entitlements`, already in the repo). The Info.plist usage
+strings are in place. HealthKit is available with a free personal team for
+on-device development.
 
 ### Enabling push (after you have the Apple Developer account)
 
