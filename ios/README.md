@@ -155,7 +155,10 @@ simply fails quietly without the entitlement.
 
 1. Set your team under target → Signing & Capabilities (or `DEVELOPMENT_TEAM` in
    `project.yml`).
-2. Add an app icon set to `Sculpt/Resources/Assets.xcassets` (`AppIcon`).
+2. App icon is in place (`Sculpt/Resources/Assets.xcassets/AppIcon`) — a white
+   heart on Sculpt's dusty-pink gradient. Regenerate any time with
+   `python3 scripts/generate-appicon.py` (pure stdlib, no deps), or replace the
+   1024² PNG with your own.
 3. Archive (Product → Archive) → distribute to **TestFlight**, then the App Store.
 
 ## Notes / things to verify on first compile
