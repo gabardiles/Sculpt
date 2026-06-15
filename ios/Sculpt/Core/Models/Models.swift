@@ -60,7 +60,7 @@ enum Unit: String, Codable, Sendable {
 
 // MARK: - Core rows
 
-struct Profile: Codable, Identifiable, Sendable {
+struct Profile: Codable, Identifiable, Sendable, Equatable {
     let id: String
     var name: String?
     // Optional so partial profile selects (e.g. the friends feed, which fetches
