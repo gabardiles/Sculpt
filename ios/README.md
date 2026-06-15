@@ -92,11 +92,20 @@ supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 Until deployed, the button surfaces a friendly "not enabled yet" message;
 reports generated on the web (shared backend) still render here in full.
 
-## Deferred (needs a tiny server)
+## Admin invites
 
-- **Admin invites** (service-role key + Resend). Shown as a disabled note in the
-  You tab. Fix: an Edge Function with the service-role key, mirroring
-  `inviteUser` in `src/lib/actions.ts`.
+Built. Admins get an "Invite someone" screen in the You tab that calls the
+**`invite-user`** Edge Function (`../supabase/functions/invite-user/`) — it
+creates the account (no password) and emails a sign-in code, mirroring
+`inviteUser` in `src/lib/actions.ts`. Deploy:
+
+```bash
+supabase functions deploy invite-user
+# optional branded email; without it, Supabase's OTP mailer is used:
+supabase secrets set RESEND_API_KEY=re_... RESEND_FROM=sculpt@yourdomain.com
+```
+
+Nothing is stubbed — every web feature has a native path.
 
 ## Native features
 

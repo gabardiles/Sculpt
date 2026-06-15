@@ -163,25 +163,10 @@ struct YouView: View {
         VStack(alignment: .leading, spacing: 10) {
             Eyebrow("Account")
             if session.profile?.isAdmin == true {
-                GlassCard {
-                    HStack(spacing: 14) {
-                        Image(systemName: "person.badge.plus")
-                            .font(.system(size: 18))
-                            .foregroundStyle(palette.inkSoft.opacity(0.5))
-                            .frame(width: 44, height: 44)
-                            .background(Circle().fill(palette.sage.opacity(0.3)))
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Invites").font(.sans(16, weight: .light))
-                            MonoText("Coming soon", size: 12)
-                                .foregroundStyle(palette.inkSoft)
-                        }
-                        Spacer()
-                    }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 16)
-                    .opacity(0.6)
+                NavigationLink { InviteView() } label: {
+                    row(icon: "person.badge.plus", title: "Invite someone")
                 }
-                .allowsHitTesting(false)
+                .buttonStyle(.plain)
             }
             PillButton(title: "Sign out", kind: .ghost, icon: "rectangle.portrait.and.arrow.right") {
                 Task { await session.signOut() }

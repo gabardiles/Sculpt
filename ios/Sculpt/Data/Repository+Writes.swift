@@ -290,6 +290,23 @@ extension Repository {
         try? await client.storage.from("progress-photos").remove(paths: [storagePath])
     }
 
+    // MARK: - Admin
+
+    /// Invite a member by email (admin only) via the `invite-user` Edge
+    /// Function: creates the account + sends a sign-in email.
+    func inviteUser(email: String) async -> (ok: Bool, emailSent: Bool, error: String?) {
+        struct Body: Encodable { var email: String }
+        struct Result: Decodable { var ok: Bool; var emailSent: Bool?; var error: String? }
+        do {
+            let result: Result = try await client.functions.invoke(
+                "invite-user", options: FunctionInvokeOptions(body: Body(email: email))
+            ) { data, _ in try JSONDecoder().decode(Result.self, from: data) }
+            return (result.ok, result.emailSent ?? false, result.error)
+        } catch {
+            return (false, false, "network")
+        }
+    }
+
     // MARK: - Report
 
     /// Generate a fresh physique report by invoking the `fitness-report` Edge
