@@ -62,7 +62,13 @@ final class WorkoutViewModel: ObservableObject {
         let exerciseIds = day.exercises.map(\.exerciseId)
 
         let logs = (try? await repo.getCycleLogs(userId, dayIds: dayIds)) ?? []
-        let history = (try? await repo.getSetHistory(userId, exerciseIds: exerciseIds)) ?? []
+        // Use the dashboard-warmed history if it's still fresh, else fetch.
+        let history: [SetHistoryRow]
+        if let warm = WorkoutPrefetch.shared.take(dayId: day.day.id) {
+            history = warm
+        } else {
+            history = (try? await repo.getSetHistory(userId, exerciseIds: exerciseIds)) ?? []
+        }
         let closures = (try? await repo.getWeekClosures(userId)) ?? []
 
         if fixed {

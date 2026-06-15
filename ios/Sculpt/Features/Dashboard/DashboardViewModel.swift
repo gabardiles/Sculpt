@@ -24,18 +24,36 @@ final class DashboardViewModel: ObservableObject {
     @Published var goalRows: [GoalRowItem] = []
     @Published var weekProgress = 0.0
 
-    struct DayRowItem: Identifiable {
+    struct DayRowItem: Identifiable, Codable {
         let id: String
         let index: Int
         let name: String
         let done: Bool
         let doneAt: String?
     }
-    struct GoalRowItem: Identifiable {
+    struct GoalRowItem: Identifiable, Codable {
         let id: String
         let label: String
         let progress: Double
         let hit: Bool
+    }
+
+    /// The rendered Today screen, persisted so the next cold start paints with
+    /// real content instead of a spinner (stale-while-revalidate).
+    struct Snapshot: Codable {
+        var headerLine: String
+        var nextDayId: String?
+        var phase: String
+        var weekComplete: Bool
+        var weekDays: [DayRowItem]
+        var sessionsThisWeek: Int
+        var weekVolume: Double
+        var avgFeel: Double?
+        var volumeSpark: [Double]
+        var goalRows: [GoalRowItem]
+        var weekProgress: Double
+        var quote: Quote?
+        var report: FitnessReport?
     }
 
     private let repo = Repository.shared
@@ -43,6 +61,7 @@ final class DashboardViewModel: ObservableObject {
     func load() async {
         loading = true
         guard let userId = await repo.currentUserId() else { loading = false; return }
+        hydrateFromCache(userId: userId)   // instant paint from last good data
         do {
             async let p = repo.getProfile(userId)
             async let prog = repo.getActiveProgram(userId)
@@ -70,10 +89,57 @@ final class DashboardViewModel: ObservableObject {
 
             compute(program: program, logs: logs, closures: closures, goals: goals,
                     bodyWeights: bodyWeights, setHistory: setHistory)
+            persist(userId: userId)            // freshen the cache for next launch
+            prefetchNextWorkout(userId: userId) // make tapping into the session instant
         } catch {
             // Leave whatever loaded; the UI degrades gracefully.
         }
         loading = false
+    }
+
+    private func hydrateFromCache(userId: String) {
+        guard program == nil,
+              let cachedProgram = DiskCache.load(ProgramWithDays.self, key: "program:\(userId)")
+        else { return }
+        program = cachedProgram
+        profile = DiskCache.load(Profile.self, key: "profile")
+        if let s = DiskCache.load(Snapshot.self, key: "dashboard:\(userId)") {
+            headerLine = s.headerLine
+            phase = Phase(rawValue: s.phase) ?? .light
+            weekComplete = s.weekComplete
+            weekDays = s.weekDays
+            sessionsThisWeek = s.sessionsThisWeek
+            weekVolume = s.weekVolume
+            avgFeel = s.avgFeel
+            volumeSpark = s.volumeSpark
+            goalRows = s.goalRows
+            weekProgress = s.weekProgress
+            quote = s.quote
+            report = s.report
+            nextDay = cachedProgram.days.first { $0.day.id == s.nextDayId }
+        }
+        loading = false   // we have something real to show — drop the spinner
+    }
+
+    private func persist(userId: String) {
+        if let program { DiskCache.save(program, key: "program:\(userId)") }
+        let snapshot = Snapshot(
+            headerLine: headerLine, nextDayId: nextDay?.day.id, phase: phase.rawValue,
+            weekComplete: weekComplete, weekDays: weekDays, sessionsThisWeek: sessionsThisWeek,
+            weekVolume: weekVolume, avgFeel: avgFeel, volumeSpark: volumeSpark,
+            goalRows: goalRows, weekProgress: weekProgress, quote: quote, report: report)
+        DiskCache.save(snapshot, key: "dashboard:\(userId)")
+    }
+
+    /// Warm the next session's set history so opening the workout is instant.
+    private func prefetchNextWorkout(userId: String) {
+        guard let day = nextDay else { return }
+        let ids = day.exercises.map(\.exerciseId)
+        Task.detached(priority: .utility) {
+            if let history = try? await Repository.shared.getSetHistory(userId, exerciseIds: ids) {
+                await WorkoutPrefetch.shared.store(dayId: day.day.id, history: history)
+            }
+        }
     }
 
     private func compute(program: ProgramWithDays, logs: [CycleLogRow], closures: [WeekClosure],

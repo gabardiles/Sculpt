@@ -34,14 +34,14 @@ struct SetHistoryRow: Codable, Sendable {
 
 // MARK: - Active program (flattened from the nested select)
 
-struct DayWithExercises: Identifiable, Sendable {
+struct DayWithExercises: Identifiable, Sendable, Codable {
     let day: ProgramDay
     /// Each carries its joined `exercise`.
     let exercises: [ProgramExercise]
     var id: String { day.id }
 }
 
-struct ProgramWithDays: Sendable {
+struct ProgramWithDays: Sendable, Codable {
     let program: Program
     let days: [DayWithExercises]
     /// Fixed-schedule programs only — empty for cycle programs.

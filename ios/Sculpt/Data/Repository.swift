@@ -148,8 +148,20 @@ final class Repository {
 
     // MARK: - Storage
 
+    private var urlCache: [String: (url: URL, expiry: Date)] = [:]
+
     func signedURL(bucket: String, path: String, expiresIn: Int = 3600) async -> URL? {
-        try? await client.storage.from(bucket).createSignedURL(path: path, expiresIn: expiresIn)
+        let key = "\(bucket)/\(path)"
+        // Reuse a still-valid signed URL (with a 60s safety margin) instead of
+        // re-signing on every render.
+        if let cached = urlCache[key], cached.expiry > Date().addingTimeInterval(60) {
+            return cached.url
+        }
+        guard let url = try? await client.storage.from(bucket).createSignedURL(path: path, expiresIn: expiresIn) else {
+            return nil
+        }
+        urlCache[key] = (url, Date().addingTimeInterval(TimeInterval(expiresIn)))
+        return url
     }
 
     func downloadImage(bucket: String, path: String) async -> Data? {
