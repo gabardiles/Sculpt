@@ -22,7 +22,7 @@ settings:
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
-    minVersion: "2.0.0"
+    from: "2.0.0"
 
 targets:
   Sculpt:
