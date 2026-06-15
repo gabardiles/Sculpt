@@ -63,7 +63,9 @@ enum Unit: String, Codable, Sendable {
 struct Profile: Codable, Identifiable, Sendable {
     let id: String
     var name: String?
-    var isAdmin: Bool
+    // Optional so partial profile selects (e.g. the friends feed, which fetches
+    // only id/name/friend_code/theme) decode without a keyNotFound error.
+    var isAdmin: Bool?
     var invitedBy: String?
     var friendCode: String?
     var theme: AppTheme?
