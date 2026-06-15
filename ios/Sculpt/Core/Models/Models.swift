@@ -71,6 +71,7 @@ struct Profile: Codable, Identifiable, Sendable {
     var age: Int?
     var heightCm: Double?
     var goalNote: String?
+    var stepGoal: Int?
     var createdAt: String?
 }
 

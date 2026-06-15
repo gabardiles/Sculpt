@@ -366,6 +366,10 @@ struct WorkoutView: View {
                 _ = await HealthKitManager.shared.requestAuthorization()
             }
             await HealthKitManager.shared.saveStrengthWorkout(start: sessionStart, end: Date())
+            // Light up today on the Green Days calendar.
+            if let userId = await Repository.shared.currentUserId() {
+                try? await Repository.shared.markWorkoutDone(userId: userId)
+            }
         }
         saving = false
     }

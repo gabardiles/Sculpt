@@ -17,6 +17,7 @@ final class HealthKitManager {
     #if canImport(HealthKit)
     private let store = HKHealthStore()
     private var bodyMass: HKQuantityType { HKQuantityType(.bodyMass) }
+    private var stepCount: HKQuantityType { HKQuantityType(.stepCount) }
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
@@ -30,12 +31,66 @@ final class HealthKitManager {
     func requestAuthorization() async -> Bool {
         guard isAvailable else { return false }
         let share: Set<HKSampleType> = [HKWorkoutType.workoutType(), bodyMass]
-        let read: Set<HKObjectType> = [bodyMass]
+        let read: Set<HKObjectType> = [bodyMass, stepCount]
         do {
             try await store.requestAuthorization(toShare: share, read: read)
             enabled = true
             return true
         } catch { return false }
+    }
+
+    // MARK: - Steps (Green Days)
+
+    /// Local-day key, matching how workout days and `Fmt.todayISO()` are keyed.
+    private static let dayKey: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f
+    }()
+
+    /// Today's step total so far.
+    func todaySteps() async -> Int {
+        guard enabled, isAvailable else { return 0 }
+        let start = Calendar.current.startOfDay(for: Date())
+        return await sumSteps(from: start, to: Date())
+    }
+
+    /// Daily step totals for the last `days` calendar days, keyed yyyy-MM-dd.
+    /// Used to backfill the Green Days calendar from Health history.
+    func dailySteps(lastDays days: Int) async -> [String: Int] {
+        guard enabled, isAvailable, days > 0 else { return [:] }
+        let cal = Calendar.current
+        let anchor = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -(days - 1), to: anchor) else { return [:] }
+        return await withCheckedContinuation { cont in
+            let pred = HKQuery.predicateForSamples(withStart: start, end: Date())
+            let q = HKStatisticsCollectionQuery(
+                quantityType: stepCount, quantitySamplePredicate: pred,
+                options: .cumulativeSum, anchorDate: anchor,
+                intervalComponents: DateComponents(day: 1))
+            q.initialResultsHandler = { _, collection, _ in
+                var out: [String: Int] = [:]
+                collection?.enumerateStatistics(from: start, to: Date()) { stat, _ in
+                    let v = stat.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                    if v > 0 { out[Self.dayKey.string(from: stat.startDate)] = Int(v) }
+                }
+                cont.resume(returning: out)
+            }
+            store.execute(q)
+        }
+    }
+
+    private func sumSteps(from: Date, to: Date) async -> Int {
+        await withCheckedContinuation { cont in
+            let pred = HKQuery.predicateForSamples(withStart: from, end: to)
+            let q = HKStatisticsQuery(quantityType: stepCount, quantitySamplePredicate: pred,
+                                      options: .cumulativeSum) { _, stats, _ in
+                cont.resume(returning: Int(stats?.sumQuantity()?.doubleValue(for: .count()) ?? 0))
+            }
+            store.execute(q)
+        }
     }
 
     /// Log a completed strength session to Health.
@@ -82,5 +137,7 @@ final class HealthKitManager {
     func saveStrengthWorkout(start: Date, end: Date) async {}
     func saveBodyMass(kg: Double, date: Date) async {}
     func latestBodyMass() async -> Double? { nil }
+    func todaySteps() async -> Int { 0 }
+    func dailySteps(lastDays days: Int) async -> [String: Int] { [:] }
     #endif
 }

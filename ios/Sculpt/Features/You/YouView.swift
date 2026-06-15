@@ -66,6 +66,11 @@ struct YouView: View {
                 row(icon: "target", title: "Goals")
             }
             .buttonStyle(.plain)
+
+            NavigationLink { GreenDaysScreen() } label: {
+                row(icon: "flame", title: "Green Days")
+            }
+            .buttonStyle(.plain)
         }
     }
 

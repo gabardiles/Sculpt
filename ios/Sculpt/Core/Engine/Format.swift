@@ -48,6 +48,19 @@ enum Fmt {
         return s
     }
 
+    private static let grouped: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = " "   // thin, Swedish-friendly grouping
+        f.maximumFractionDigits = 0
+        return f
+    }()
+
+    /// Grouped step count, e.g. "10 000".
+    static func steps(_ n: Int) -> String {
+        grouped.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
     static func greeting(_ name: String?) -> String {
         let h = Calendar.current.component(.hour, from: Date())
         let part = h < 5 ? "Good night"

@@ -114,7 +114,8 @@ Nothing is stubbed — every web feature has a native path.
 | **Haptics** (done / PB / cheer) | ✅ live |
 | **Local notifications** (rest-timer-done, training reminders) | ✅ live, no account needed |
 | **Push for feed** (cheer/comment while app closed) | 🟡 scaffolded — see below |
-| **HealthKit sync** (workouts + body weight) | ✅ coded — enable the capability in Xcode |
+| **HealthKit sync** (workouts + body weight + **steps read**) | ✅ coded — enable the capability in Xcode |
+| **Green Days** (steps + training → green/gold days, streaks, points, friends leaderboard) | ✅ live — Apple Health steps power rest-day greens |
 | **Live Activity** (Dynamic Island rest timer) + **home-screen widget** | ✅ coded — `SculptWidgets` extension; add App Group in Xcode |
 
 ### Enabling the widget + Live Activity
@@ -135,9 +136,10 @@ widget shows a tasteful "Open Sculpt" placeholder — nothing breaks.
 ### Enabling HealthKit
 
 The code is in (`Core/Health/HealthKitManager.swift`); it writes a strength
-workout on finish and mirrors body-weight entries, and asks permission the
-first time you finish a session. Everything is guarded, so the app builds and
-runs fine without the capability — Health just stays inert. To turn it on:
+workout on finish, mirrors body-weight entries, and **reads daily steps** to
+power Green Days (see below). It asks permission the first time you finish a
+session. Everything is guarded, so the app builds and runs fine without the
+capability — Health just stays inert. To turn it on:
 in Xcode → target → Signing & Capabilities → **+ Capability → HealthKit** (this
 wires `Sculpt/Sculpt.entitlements`, already in the repo). The Info.plist usage
 strings are in place. HealthKit is available with a free personal team for

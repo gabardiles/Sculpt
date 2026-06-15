@@ -7,6 +7,7 @@ struct DashboardView: View {
     @EnvironmentObject private var session: SessionStore
     @Environment(\.palette) private var palette
     @StateObject private var vm = DashboardViewModel()
+    @StateObject private var activity = ActivityViewModel()
 
     var body: some View {
         ZStack {
@@ -18,6 +19,7 @@ struct DashboardView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         header
                         nextUp
+                        GreenDaysCard(vm: activity)
                         weekList
                         if vm.sessionsThisWeek > 0 { thisWeek }
                         if let r = vm.report, r.assessable { reportShortcut(r) }
@@ -31,7 +33,8 @@ struct DashboardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .task { await vm.load() }
-        .refreshable { await vm.load() }
+        .task { await activity.load() }
+        .refreshable { await vm.load(); await activity.refresh() }
     }
 
     private var header: some View {

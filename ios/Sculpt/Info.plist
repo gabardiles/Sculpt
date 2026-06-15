@@ -43,7 +43,7 @@
 	<string>Add progress photos and share gym wins with friends.</string>
 	<!-- Apple Health — optional workout + body-weight sync -->
 	<key>NSHealthShareUsageDescription</key>
-	<string>Read your latest body weight to keep your diary and Health in sync.</string>
+	<string>Read your daily steps and latest body weight to earn green days and keep your diary in sync.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Save your completed sessions and body-weight entries to Apple Health.</string>
 </dict>
