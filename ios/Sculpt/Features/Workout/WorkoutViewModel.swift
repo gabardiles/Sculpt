@@ -27,7 +27,7 @@ final class WorkoutViewModel: ObservableObject {
         let prevCycleWeight: Double?
     }
 
-    struct Entry { var weight: String; var reps: String; var sets: String; var done: Bool }
+    struct Entry: Equatable { var weight: String; var reps: String; var sets: String; var done: Bool }
 
     @Published var exercises: [WorkoutExercise] = []
     @Published var entries: [String: Entry] = [:]
