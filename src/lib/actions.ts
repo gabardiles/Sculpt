@@ -365,6 +365,15 @@ export async function completeWorkout(input: {
 
   if (error || !log) return { ok: false as const, error: error?.message };
 
+  // Light up today on the Green Days calendar (partial upsert — never clobbers
+  // a synced step count). Mirrors Repository.markWorkoutDone on iOS.
+  await supabase
+    .from("activity_days")
+    .upsert(
+      { user_id: userId, date: new Date().toISOString().slice(0, 10), workout_done: true },
+      { onConflict: "user_id,date" }
+    );
+
   if (input.entries.length) {
     await supabase.from("set_logs").insert(
       input.entries.map((e) => ({

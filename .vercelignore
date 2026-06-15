@@ -1,0 +1,5 @@
+# Native iOS app — not part of the Next.js deployment.
+ios
+
+# Supabase Deno Edge Functions — deployed via the Supabase CLI, not Vercel.
+supabase/functions

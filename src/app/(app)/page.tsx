@@ -9,6 +9,7 @@ import {
   getQuoteOfTheDay,
   getGoals,
   getWeekClosures,
+  getActivityDays,
 } from "@/lib/data";
 import { deriveCycleState, REP_TARGETS, SETS_PER_EXERCISE } from "@/lib/cycle";
 import {
@@ -32,6 +33,7 @@ import {
 import { dayImage } from "@/lib/editorial";
 import type { Exercise as ExerciseRow } from "@/lib/types";
 import { Sparkline } from "@/components/weight/Sparkline";
+import { GreenDaysStrip } from "@/components/dashboard/GreenDaysStrip";
 import type { FeedPost } from "@/lib/types";
 
 export default async function DashboardPage() {
@@ -49,6 +51,7 @@ export default async function DashboardPage() {
     quote,
     goals,
     closures,
+    activityDays,
     { data: setRows },
     { data: friendRows },
     { data: reportRow },
@@ -58,6 +61,7 @@ export default async function DashboardPage() {
     getQuoteOfTheDay(),
     getGoals(supabase, user.id),
     getWeekClosures(supabase, user.id),
+    getActivityDays(supabase, user.id),
     supabase
       .from("set_logs")
       .select(
@@ -515,6 +519,9 @@ export default async function DashboardPage() {
               />
             )}
       </section>
+
+      {/* green days — consistency at a glance */}
+      <GreenDaysStrip days={activityDays} />
 
       {/* this week's numbers */}
       {logs.length > 0 && (

@@ -13,6 +13,7 @@ import type {
   WeekIntensity,
 } from "@/lib/types";
 import type { CycleLogRow } from "@/lib/cycle";
+import type { ActivityDay } from "@/lib/greenDays";
 import { redirect } from "next/navigation";
 
 export async function requireUser() {
@@ -95,6 +96,22 @@ export async function getCycleLogs(
     .in("program_day_id", dayIds)
     .order("completed_at");
   return (data ?? []) as CycleLogRow[];
+}
+
+export async function getActivityDays(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  sinceDays = 120
+): Promise<ActivityDay[]> {
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - sinceDays);
+  const { data } = await supabase
+    .from("activity_days")
+    .select("user_id, date, steps, step_goal, workout_done")
+    .eq("user_id", userId)
+    .gte("date", since.toISOString().slice(0, 10))
+    .order("date", { ascending: true });
+  return (data ?? []) as ActivityDay[];
 }
 
 // Quotes are global and tiny — cache them in the server for a day instead
