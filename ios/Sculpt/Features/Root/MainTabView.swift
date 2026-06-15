@@ -10,15 +10,15 @@ struct MainTabView: View {
     var body: some View {
         TabView(selection: $selection) {
             NavigationStack { DashboardView() }
-                .tabItem { Label("Today", systemImage: "house") }.tag(0)
+                .tabItem { Label("Today", image: "tab-today") }.tag(0)
             NavigationStack { ProgramView() }
-                .tabItem { Label("Program", systemImage: "calendar") }.tag(1)
+                .tabItem { Label("Program", image: "tab-program") }.tag(1)
             NavigationStack { ReportView() }
-                .tabItem { Label("Report", systemImage: "sparkles") }.tag(2)
+                .tabItem { Label("Report", image: "tab-report") }.tag(2)
             NavigationStack { FriendsView() }
-                .tabItem { Label("Friends", systemImage: "heart") }.tag(3)
+                .tabItem { Label("Friends", image: "tab-friends") }.tag(3)
             NavigationStack { YouView() }
-                .tabItem { Label("You", systemImage: "person.crop.circle") }.tag(4)
+                .tabItem { Label("You", image: "tab-you") }.tag(4)
         }
         .tint(palette.blushDeep)
     }
