@@ -290,7 +290,22 @@ extension Repository {
         try? await client.storage.from("progress-photos").remove(paths: [storagePath])
     }
 
-    // MARK: - Report setup (AI generation is deferred to a server function)
+    // MARK: - Report
+
+    /// Generate a fresh physique report by invoking the `fitness-report` Edge
+    /// Function (Claude vision). Returns a coarse error code matching the web
+    /// action: not_configured / needs_setup / needs_photo / analysis_failed.
+    func generateFitnessReport() async -> (ok: Bool, error: String?) {
+        struct Result: Decodable { var ok: Bool; var reportId: String?; var error: String? }
+        do {
+            let result: Result = try await client.functions.invoke(
+                "fitness-report", options: FunctionInvokeOptions()
+            ) { data, _ in try JSONDecoder().decode(Result.self, from: data) }
+            return (result.ok, result.error)
+        } catch {
+            return (false, "network")
+        }
+    }
 
     func saveFitnessProfile(userId: String, gender: Gender, heightCm: Double?,
                             goalNote: String?, weight: Double?) async throws {

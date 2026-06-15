@@ -2,12 +2,11 @@ import SwiftUI
 
 /// The Fitness Report tab — an AI coach's read of your physique photos.
 ///
-/// AI generation is deferred to a future server function (it needs the
-/// Anthropic key), so this screen faithfully *displays* the latest saved
-/// report (which the web app may have produced on the shared backend) and
-/// offers the setup form. Where the web shows "Analyze my photos", we show a
-/// tasteful "Coming soon" card instead — no generate endpoint is called.
-/// Mirrors src/components/report/ReportClient.tsx (display + setup only).
+/// "Analyze my photos" calls the `fitness-report` Edge Function (Claude vision)
+/// which scores the latest progress photos and stores a report; this screen
+/// then displays it. The report profile setup feeds the scoring. Reports made
+/// on the shared backend (web app) also render here in full.
+/// Mirrors src/components/report/ReportClient.tsx.
 struct ReportView: View {
     @EnvironmentObject private var session: SessionStore
     @Environment(\.palette) private var palette
@@ -34,13 +33,15 @@ struct ReportView: View {
                     VStack(alignment: .leading, spacing: 20) {
                         header
                         intro
-                        comingSoonCard
                         if vm.needsSetup {
                             setupPrompt
-                        } else if let r = vm.latest {
-                            report(r)
                         } else {
-                            noReportYet
+                            analyzeCard
+                            if let r = vm.latest {
+                                report(r)
+                            } else {
+                                noReportYet
+                            }
                         }
                     }
                     .padding(20)
@@ -93,25 +94,37 @@ struct ReportView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Replaces the web "Analyze my photos" affordance: photo analysis is on the
-    /// way but needs a server function, so we present it as a disabled preview.
-    private var comingSoonCard: some View {
+    /// "Analyze my photos" — runs the fitness-report Edge Function on the latest
+    /// progress photos and refreshes with the new score.
+    private var analyzeCard: some View {
         GlassCard {
-            HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    Circle().fill(palette.blush.opacity(0.3)).frame(width: 48, height: 48)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 20, weight: .light))
-                        .foregroundStyle(palette.blushDeep)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 14) {
+                    ZStack {
+                        Circle().fill(palette.blush.opacity(0.3)).frame(width: 48, height: 48)
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 20, weight: .light))
+                            .foregroundStyle(palette.blushDeep)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(vm.latest == nil ? "Analyze your photos" : "Fresh read")
+                            .font(.sans(15, weight: .light))
+                        Text("Score your latest progress photos against your goal. Private to you.")
+                            .font(.sans(13, weight: .light))
+                            .foregroundStyle(palette.inkSoft)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Photo analysis · coming soon")
-                        .font(.sans(15, weight: .light))
-                    Text("Scoring your progress photos arrives in an update. For now, any report generated on the web shows here in full.")
-                        .font(.sans(13, weight: .light))
-                        .foregroundStyle(palette.inkSoft)
+                if let e = vm.generateError {
+                    Text(e).font(.sans(13, weight: .light)).foregroundStyle(palette.blushDeep)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                PillButton(title: vm.generating
+                           ? "Analyzing…"
+                           : (vm.latest == nil ? "Analyze my photos" : "Re-analyze my photos")) {
+                    Task { await vm.generate() }
+                }
+                .disabled(vm.generating)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(16)
@@ -153,7 +166,7 @@ struct ReportView: View {
                         .foregroundStyle(palette.blushDeep)
                 }
                 Text("No report yet").font(.sans(18, weight: .light)).padding(.top, 4)
-                Text("Your report reads your progress photos. Photo analysis is coming in an update — your first score will appear here once it's ready.")
+                Text("Add a progress photo, then tap Analyze — your coach reads it and scores your training development here.")
                     .font(.sans(14, weight: .light))
                     .foregroundStyle(palette.inkSoft)
                     .multilineTextAlignment(.center)
