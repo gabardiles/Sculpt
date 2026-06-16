@@ -127,21 +127,28 @@ struct PhotosView: View {
     }
 
     private func thumbnail(_ card: PhotosViewModel.PhotoCard) -> some View {
-        Group {
-            if let url = card.url {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case .success(let img): img.resizable().scaledToFill()
-                    default: palette.surfaceSoft
+        // Color.clear pins every cell to a uniform 3:4 box (column width × 4/3);
+        // the image fills + clips inside it, so cells never overflow or misalign.
+        Color.clear
+            .aspectRatio(3.0 / 4.0, contentMode: .fit)
+            .overlay {
+                if let url = card.url {
+                    AsyncImage(url: url,
+                               transaction: Transaction(animation: .easeOut(duration: 0.35))) { phase in
+                        switch phase {
+                        case .success(let img):
+                            img.resizable().scaledToFill().transition(.opacity)
+                        case .failure:
+                            palette.surfaceSoft
+                        default:
+                            Shimmer()
+                        }
                     }
+                } else {
+                    Shimmer()
                 }
-            } else {
-                palette.surfaceSoft
             }
-        }
-        .aspectRatio(3.0 / 4.0, contentMode: .fill)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     // MARK: viewer

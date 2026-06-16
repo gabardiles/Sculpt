@@ -85,6 +85,33 @@ struct GlassCard<Content: View>: View {
     }
 }
 
+/// Animated "ghost loader" — a soft shimmer over `surfaceSoft`. Used as the
+/// placeholder while async images load so cells fade in instead of blinking.
+struct Shimmer: View {
+    @Environment(\.palette) private var palette
+    @State private var animating = false
+
+    var body: some View {
+        palette.surfaceSoft
+            .overlay {
+                GeometryReader { geo in
+                    let highlight = palette.isDark ? Color.white.opacity(0.06)
+                                                   : Color.white.opacity(0.55)
+                    LinearGradient(colors: [.clear, highlight, .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: geo.size.width * 0.7)
+                        .offset(x: animating ? geo.size.width * 1.3 : -geo.size.width * 1.3)
+                }
+            }
+            .clipped()
+            .onAppear {
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                    animating = true
+                }
+            }
+    }
+}
+
 /// Pill-shaped button — the `PillButton` component.
 struct PillButton: View {
     enum Kind { case accent, ghost, sage }
