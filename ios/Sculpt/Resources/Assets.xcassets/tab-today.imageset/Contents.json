@@ -1,26 +1,16 @@
 {
-  "images": [
+  "images" : [
     {
-      "idiom": "universal",
-      "scale": "1x",
-      "filename": "icon.png"
-    },
-    {
-      "idiom": "universal",
-      "scale": "2x",
-      "filename": "icon@2x.png"
-    },
-    {
-      "idiom": "universal",
-      "scale": "3x",
-      "filename": "icon@3x.png"
+      "idiom" : "universal",
+      "filename" : "house-heart.svg"
     }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
   },
-  "properties": {
-    "template-rendering-intent": "template"
+  "properties" : {
+    "preserves-vector-representation" : true,
+    "template-rendering-intent" : "template"
   }
 }
