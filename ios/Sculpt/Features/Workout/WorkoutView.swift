@@ -86,8 +86,9 @@ struct WorkoutView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await vm.load(); restoreDraft() }
         .onChange(of: vm.entries) { _, new in WorkoutDraft.save(dayId: vm.day.day.id, entries: new) }
-        .sheet(item: $videoFor) { ex in instructionSheet(ex) }
-        .sheet(isPresented: $feelOpen) { feelSheet }
+        // Sheets start their own environment branch too — carry the theme in.
+        .sheet(item: $videoFor) { ex in instructionSheet(ex).environment(\.palette, palette) }
+        .sheet(isPresented: $feelOpen) { feelSheet.environment(\.palette, palette) }
     }
 
     // MARK: header
@@ -125,7 +126,10 @@ struct WorkoutView: View {
                 LinearGradient(colors: [palette.blush.opacity(0.5), palette.bg], startPoint: .top, endPoint: .bottom)
                 LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
             }
-            .ignoresSafeArea(edges: .top)   // gradient bleeds up under the island
+            // NB: must NOT .ignoresSafeArea here — inside an in-flow ScrollView
+            // header it collapses the banner's measured height and the content
+            // below slides up under the title. The top gradient is handled by
+            // SculptBackground bleeding through the status-bar area instead.
         )
     }
 
@@ -175,7 +179,7 @@ struct WorkoutView: View {
             ZStack {
                 Circle().fill(done ? palette.sage : palette.surfaceSoft)
                     .frame(width: 28, height: 28)
-                if done { Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundStyle(.white) }
+                if done { Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundStyle(.white) }
             }
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -271,12 +275,12 @@ struct WorkoutView: View {
         VStack {
             Spacer()
             HStack(spacing: 10) {
-                // Bail: white circle, brand-tinted X.
+                // Bail: themed surface circle, brand-tinted X.
                 Button { leave() } label: {
-                    Image(systemName: "xmark").font(.system(size: 18, weight: .bold))
+                    Image(systemName: "xmark").font(.system(size: 17, weight: .medium))
                         .foregroundStyle(palette.blushDeep)
                         .frame(width: 56, height: 56)
-                        .background(Circle().fill(.white))
+                        .background(Circle().fill(palette.surfaceStrong))
                         .overlay(Circle().strokeBorder(palette.blushDeep.opacity(0.25)))
                         .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
                 }
@@ -284,13 +288,20 @@ struct WorkoutView: View {
                 Button { feel = nil; feelOpen = true } label: {
                     Text(vm.exercises.isEmpty ? "Finish workout" : "Finish workout · \(vm.doneCount)/\(vm.exercises.count)")
                         .font(.sans(16, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(palette.onAccent)
                         .frame(maxWidth: .infinity).frame(height: 56)
                         .background(Capsule().fill(palette.blushDeep))
                         .shadow(color: palette.blushDeep.opacity(0.35), radius: 10, y: 4)
                 }
             }
-            .padding(.horizontal, 18).padding(.bottom, 12)
+            .padding(.horizontal, 18).padding(.bottom, 12).padding(.top, 28)
+            // Scrim so cards scrolling under the floating bar stay legible.
+            .background(
+                LinearGradient(colors: [palette.bg.opacity(0), palette.bg.opacity(0.9), palette.bg],
+                               startPoint: .top, endPoint: .bottom)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+            )
         }
     }
 

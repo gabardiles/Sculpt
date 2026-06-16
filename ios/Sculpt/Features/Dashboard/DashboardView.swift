@@ -42,7 +42,11 @@ struct DashboardView: View {
         .fullScreenCover(item: $workoutDay, onDismiss: {
             Task { await vm.load(); await activity.refresh() }
         }) { day in
+            // .fullScreenCover starts a fresh environment branch — custom values
+            // like \.palette don't cross it, so re-inject the active theme or the
+            // whole session screen falls back to the default light palette.
             WorkoutView(day: day, phase: vm.phase, program: vm.program)
+                .environment(\.palette, palette)
         }
     }
 
