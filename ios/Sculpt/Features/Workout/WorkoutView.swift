@@ -15,6 +15,9 @@ struct WorkoutView: View {
     @State private var feel: Int?
     @State private var saving = false
     @State private var celebrating = false
+    /// Timer ring fill (0→1) and live drag offset for the celebration drawer.
+    @State private var celebrationProgress: CGFloat = 0
+    @State private var drawerDrag: CGFloat = 0
     @State private var restUntil: Date?
     @State private var restNext: String?
     @State private var shareItem: PhotosPickerItem?
@@ -63,7 +66,6 @@ struct WorkoutView: View {
                     .padding(.bottom, 120)
                 }
                 .coordinateSpace(name: scrollSpace)
-                .scrollTargetBehavior(.viewAligned)
                 .onPreferenceChange(ScrollOffsetKey.self) { scrollY = $0 }
                 // Tapping (or auto-advancing to) an exercise snaps it to the top.
                 .onChange(of: expanded) { _, id in
@@ -80,7 +82,7 @@ struct WorkoutView: View {
                 .padding(.top, 8)
             }
             finishFooter
-            if celebrating { celebration }
+            if celebrating { celebrationDrawer }
         }
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
@@ -190,7 +192,6 @@ struct WorkoutView: View {
                 .id(ex.id)
             }
         }
-        .scrollTargetLayout()   // snap the scroll to whole exercise cards
     }
 
     private func row(_ ex: WorkoutViewModel.WorkoutExercise, done: Bool, isNext: Bool) -> some View {
@@ -251,9 +252,15 @@ struct WorkoutView: View {
                 MonoText(bump, size: 12, weight: .medium).foregroundStyle(palette.sageDeep)
             }
             if done {
-                PillButton(title: "Undo", kind: .ghost, icon: "xmark") { vm.entries[ex.id]?.done = false }
+                PillButton(title: "Undo", kind: .ghost, icon: "xmark") {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { vm.entries[ex.id]?.done = false }
+                }
             } else {
-                PillButton(title: "Done", kind: .sage, icon: "checkmark") { markDone(ex) }
+                HStack(spacing: 10) {
+                    PillButton(title: "Done", kind: .sage, icon: "checkmark") { markDone(ex) }
+                    // Smaller outlined escape hatch — move on without logging it.
+                    PillButton(title: "Skip", kind: .ghost, fullWidth: false) { skip(ex) }
+                }
             }
         }
         .padding(.vertical, 14).padding(.horizontal, 18)
@@ -290,6 +297,13 @@ struct WorkoutView: View {
             RestActivityController.shared.start(dayName: vm.day.day.name, endDate: until,
                                                 nextExercise: next?.name ?? "Next set")
         }
+    }
+
+    /// Skip — move focus to the next unfinished exercise without logging it.
+    private func skip(_ ex: WorkoutViewModel.WorkoutExercise) {
+        Haptics.select()
+        let next = vm.exercises.first { $0.id != ex.id && !(vm.entries[$0.id]?.done ?? false) }
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { expanded = next?.id }
     }
 
     // MARK: footer
@@ -389,33 +403,76 @@ struct WorkoutView: View {
         .presentationDetents([.height(360)])
     }
 
-    private var celebration: some View {
-        ZStack {
-            palette.bg.opacity(0.97).ignoresSafeArea()
-            VStack(spacing: 16) {
+    /// Post-session celebration as a draw-up sheet: dismiss by tapping the dimmed
+    /// backdrop, swiping it down, or letting the timer ring around the edge fill.
+    private var celebrationDrawer: some View {
+        ZStack(alignment: .bottom) {
+            Color.black.opacity(0.4).ignoresSafeArea()
+                .onTapGesture { dismissCelebration() }
+                .transition(.opacity)
+            VStack(spacing: 14) {
+                Capsule().fill(palette.inkSoft.opacity(0.35)).frame(width: 40, height: 5).padding(.top, 10)
                 ZStack {
-                    Circle().fill(palette.sage).frame(width: 96, height: 96)
-                    Image(systemName: "checkmark").font(.system(size: 40, weight: .bold)).foregroundStyle(.white)
+                    Circle().fill(palette.sage).frame(width: 84, height: 84)
+                    Image(systemName: "checkmark").font(.system(size: 36, weight: .semibold)).foregroundStyle(.white)
                 }
-                Text("\(vm.day.day.name) — done").font(.sans(24, weight: .light))
+                .padding(.top, 4)
+                Text("\(vm.day.day.name) — done").font(.sans(23, weight: .light))
                 if shared {
-                    Text("Shared with your friends ✓").font(.sans(14, weight: .medium)).foregroundStyle(palette.sageDeep)
+                    Text("Shared with your friends ✓").font(.sans(14, weight: .medium))
+                        .foregroundStyle(palette.sageDeep).padding(.bottom, 8)
                 } else {
                     Text(vm.sharePrompt).font(.sans(14, weight: .light)).multilineTextAlignment(.center)
-                        .foregroundStyle(palette.inkSoft).padding(.horizontal, 24)
+                        .foregroundStyle(palette.inkSoft).padding(.horizontal, 16)
                     PhotosPicker(selection: $shareItem, matching: .images) {
                         HStack { Image(systemName: "camera"); Text(sharing ? "Posting…" : "Snap it for the feed") }
                             .font(.sans(16, weight: .medium)).foregroundStyle(palette.onAccent)
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .background(Capsule().fill(palette.blush))
                     }
-                    .padding(.horizontal, 32)
-                    Button("Not today") { leave() }
+                    Button("Not today") { dismissCelebration() }
                         .font(.sans(14, weight: .light)).foregroundStyle(palette.inkSoft)
                 }
             }
+            .padding(.horizontal, 24).padding(.bottom, 28)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .fill(palette.surfaceStrong)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+            )
+            .overlay(
+                // Countdown ring: fills around the edge, then auto-dismisses.
+                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                    .trim(from: 0, to: celebrationProgress)
+                    .stroke(palette.blushDeep, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                    .allowsHitTesting(false)
+            )
+            .padding(.horizontal, 10)
+            .offset(y: max(0, drawerDrag))
+            .gesture(
+                DragGesture()
+                    .onChanged { drawerDrag = $0.translation.height }
+                    .onEnded { v in
+                        if v.translation.height > 90 { dismissCelebration() }
+                        else { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { drawerDrag = 0 } }
+                    }
+            )
+            .transition(.move(edge: .bottom))
+            .task {
+                celebrationProgress = 0
+                withAnimation(.linear(duration: 9)) { celebrationProgress = 1 }
+                try? await Task.sleep(for: .seconds(9))
+                if celebrating && !sharing && !shared { dismissCelebration() }
+            }
+            .onChange(of: shareItem) { _, item in if let item { Task { await share(item) } } }
         }
-        .onChange(of: shareItem) { _, item in if let item { Task { await share(item) } } }
+    }
+
+    private func dismissCelebration() {
+        withAnimation(.easeInOut(duration: 0.28)) { celebrating = false; drawerDrag = 0 }
+        // The session is logged — head back to the dashboard once it slides away.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { if !shared { leave() } }
     }
 
     // MARK: actions
@@ -430,7 +487,8 @@ struct WorkoutView: View {
         guard let feel else { return }
         saving = true
         if await vm.save(feel: feel) {
-            feelOpen = false; celebrating = true
+            feelOpen = false
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) { celebrating = true }
             Haptics.celebrate()
             LocalNotifications.shared.cancelRestEnd()
             RestActivityController.shared.end()
