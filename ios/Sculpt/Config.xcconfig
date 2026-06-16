@@ -9,5 +9,5 @@
 //   SUPABASE_HOST = your-project.supabase.co
 //   SUPABASE_ANON_KEY = eyJhbGciOi...
 
-SUPABASE_HOST = your-project.supabase.co
-SUPABASE_ANON_KEY = your-anon-key
+SUPABASE_HOST = https://gmfniohymqwdfiimityo.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdtZm5pb2h5bXF3ZGZpaW1pdHlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMzk5NDksImV4cCI6MjA4OTYxNTk0OX0.SWccIuz7cF7b8muHJqTO9tuR2GF8-yUTawl-xg_y6l0
