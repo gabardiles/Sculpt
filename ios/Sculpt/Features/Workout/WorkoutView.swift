@@ -73,14 +73,6 @@ struct WorkoutView: View {
                     withAnimation(Motion.standard) { proxy.scrollTo(id, anchor: .top) }
                 }
             }
-            if let until = restUntil {
-                RestTimer(until: until, nextName: restNext) {
-                    restUntil = nil
-                    LocalNotifications.shared.cancelRestEnd()
-                    RestActivityController.shared.end()
-                }
-                .padding(.top, 8)
-            }
             finishFooter
             if celebrating { celebrationDrawer }
         }
@@ -174,6 +166,16 @@ struct WorkoutView: View {
             ForEach(vm.exercises) { ex in
                 let isNext = ex.id == vm.nextUpId
                 let done = vm.entries[ex.id]?.done ?? false
+                // Rest countdown lives between the finished exercise and the next
+                // one — inline so it never covers a card's name or last-set info.
+                if isNext, let until = restUntil {
+                    RestTimer(until: until, nextName: restNext) {
+                        withAnimation(Motion.standard) { restUntil = nil }
+                        LocalNotifications.shared.cancelRestEnd()
+                        RestActivityController.shared.end()
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
                 GlassCard(style: done ? .done : (isNext ? .spotlight : .normal)) {
                     VStack(spacing: 0) {
                         Button { withAnimation(Motion.standard) { expanded = expanded == ex.id ? nil : ex.id } } label: { row(ex, done: done, isNext: isNext) }
@@ -283,9 +285,11 @@ struct WorkoutView: View {
             expanded = next?.id
         }
         if next != nil {
-            restNext = next?.name
             let until = Date().addingTimeInterval(Double(RepTargets.restSeconds[vm.repPhase] ?? 90))
-            restUntil = until
+            withAnimation(Motion.standard) {
+                restNext = next?.name
+                restUntil = until
+            }
             // Buzz when rest ends even if she's left the app mid-session.
             LocalNotifications.shared.scheduleRestEnd(at: until, nextName: next?.name)
             // Live Activity: rest timer on the Lock Screen / Dynamic Island.
