@@ -28,7 +28,7 @@ struct ReportView: View {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.latest == nil && vm.profile == nil {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else {
                     VStack(alignment: .leading, spacing: 20) {
                         header
@@ -46,8 +46,10 @@ struct ReportView: View {
                     }
                     .padding(20)
                     .padding(.bottom, 90)
+                    .transition(.opacity)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .foregroundStyle(palette.ink)
         .navigationBarTitleDisplayMode(.inline)

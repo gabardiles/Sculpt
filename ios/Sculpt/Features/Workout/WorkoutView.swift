@@ -70,7 +70,7 @@ struct WorkoutView: View {
                 // Tapping (or auto-advancing to) an exercise snaps it to the top.
                 .onChange(of: expanded) { _, id in
                     guard let id else { return }
-                    withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo(id, anchor: .top) }
+                    withAnimation(Motion.standard) { proxy.scrollTo(id, anchor: .top) }
                 }
             }
             if let until = restUntil {
@@ -132,13 +132,8 @@ struct WorkoutView: View {
             ZStack {
                 // Tint shows while the photo loads / if it fails.
                 LinearGradient(colors: [palette.blush.opacity(0.5), palette.bg], startPoint: .top, endPoint: .bottom)
-                AsyncImage(url: Editorial.dayImage(vm.day.day.dayIndex)) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Color.clear
-                    }
-                }
+                // Fades in over the blush gradient (placeholder is clear, no blink).
+                RemoteImage(url: Editorial.dayImage(vm.day.day.dayIndex), placeholder: { Color.clear })
                 // Darken for white-text legibility (matches the web overlay).
                 LinearGradient(colors: [.black.opacity(0.28), .black.opacity(0.55)],
                                startPoint: .top, endPoint: .bottom)
@@ -181,7 +176,7 @@ struct WorkoutView: View {
                 let done = vm.entries[ex.id]?.done ?? false
                 GlassCard(style: done ? .done : (isNext ? .spotlight : .normal)) {
                     VStack(spacing: 0) {
-                        Button { withAnimation(.easeInOut(duration: 0.25)) { expanded = expanded == ex.id ? nil : ex.id } } label: { row(ex, done: done, isNext: isNext) }
+                        Button { withAnimation(Motion.standard) { expanded = expanded == ex.id ? nil : ex.id } } label: { row(ex, done: done, isNext: isNext) }
                             .buttonStyle(.plain)
                         if expanded == ex.id {
                             logPanel(ex, done: done)
@@ -253,7 +248,7 @@ struct WorkoutView: View {
             }
             if done {
                 PillButton(title: "Undo", kind: .ghost, icon: "xmark") {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { vm.entries[ex.id]?.done = false }
+                    withAnimation(Motion.spring) { vm.entries[ex.id]?.done = false }
                 }
             } else {
                 HStack(spacing: 10) {
@@ -283,7 +278,7 @@ struct WorkoutView: View {
         let next = vm.exercises.first { $0.id != ex.id && !(vm.entries[$0.id]?.done ?? false) }
         // Smooth morph: the card fills green and its log panel collapses while the
         // next card expands — a soft spring instead of an instant blink.
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+        withAnimation(Motion.spring) {
             vm.entries[ex.id]?.done = true
             expanded = next?.id
         }
@@ -303,7 +298,7 @@ struct WorkoutView: View {
     private func skip(_ ex: WorkoutViewModel.WorkoutExercise) {
         Haptics.select()
         let next = vm.exercises.first { $0.id != ex.id && !(vm.entries[$0.id]?.done ?? false) }
-        withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { expanded = next?.id }
+        withAnimation(Motion.spring) { expanded = next?.id }
     }
 
     // MARK: footer
@@ -455,7 +450,7 @@ struct WorkoutView: View {
                     .onChanged { drawerDrag = $0.translation.height }
                     .onEnded { v in
                         if v.translation.height > 90 { dismissCelebration() }
-                        else { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { drawerDrag = 0 } }
+                        else { withAnimation(Motion.spring) { drawerDrag = 0 } }
                     }
             )
             .transition(.move(edge: .bottom))
@@ -470,7 +465,7 @@ struct WorkoutView: View {
     }
 
     private func dismissCelebration() {
-        withAnimation(.easeInOut(duration: 0.28)) { celebrating = false; drawerDrag = 0 }
+        withAnimation(Motion.standard) { celebrating = false; drawerDrag = 0 }
         // The session is logged — head back to the dashboard once it slides away.
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { if !shared { leave() } }
     }
@@ -488,7 +483,7 @@ struct WorkoutView: View {
         saving = true
         if await vm.save(feel: feel) {
             feelOpen = false
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) { celebrating = true }
+            withAnimation(Motion.spring) { celebrating = true }
             Haptics.celebrate()
             LocalNotifications.shared.cancelRestEnd()
             RestActivityController.shared.end()

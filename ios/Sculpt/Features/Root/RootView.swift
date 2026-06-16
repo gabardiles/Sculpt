@@ -23,7 +23,7 @@ struct RootView: View {
                     .task { await setupNotifications() }
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: session.phase)
+        .animation(Motion.standard, value: session.phase)
     }
 
     private func syncTheme(_ remote: AppTheme?) {

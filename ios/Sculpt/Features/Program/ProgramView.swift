@@ -30,7 +30,7 @@ struct ProgramView: View {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.program == nil {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else if let program = vm.program {
                     VStack(alignment: .leading, spacing: 24) {
                         header(program)
@@ -38,12 +38,14 @@ struct ProgramView: View {
                         if !vm.otherTemplates.isEmpty { switchSection(program) }
                     }
                     .padding(20).padding(.bottom, 90)
+                    .transition(.opacity)
                 } else {
                     Text("No active program yet.")
                         .font(.sans(15, weight: .light))
                         .foregroundStyle(palette.inkSoft).padding(.top, 120)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)

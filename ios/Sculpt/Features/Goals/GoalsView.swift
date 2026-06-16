@@ -14,7 +14,7 @@ struct GoalsView: View {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.rows.isEmpty {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else {
                     VStack(alignment: .leading, spacing: 20) {
                         header
@@ -24,8 +24,10 @@ struct GoalsView: View {
                     }
                     .padding(20)
                     .padding(.bottom, 90)
+                    .transition(.opacity)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)

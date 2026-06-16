@@ -16,7 +16,7 @@ struct DashboardView: View {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.program == nil {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else {
                     VStack(alignment: .leading, spacing: 22) {
                         header
@@ -29,8 +29,10 @@ struct DashboardView: View {
                         if let q = vm.quote { quote(q) }
                     }
                     .padding(20).padding(.bottom, 90)
+                    .transition(.opacity)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)

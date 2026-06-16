@@ -171,7 +171,7 @@ struct ProgressRing: View {
                 .trim(from: 0, to: max(0, min(1, progress)))
                 .stroke(palette.blushDeep, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.4), value: progress)
+                .animation(Motion.content, value: progress)
             if let label {
                 Text(label).font(.mono(13, weight: .medium)).foregroundStyle(palette.ink)
             }
@@ -226,5 +226,83 @@ struct Screen<Content: View>: View {
             }
         }
         .foregroundStyle(palette.ink)
+    }
+}
+
+// MARK: - Motion
+
+/// Shared motion tokens so every animation in the app feels uniform. Reach for
+/// these instead of inline durations/curves.
+enum Motion {
+    /// Toggles, expand/collapse, default UI state changes.
+    static let standard: Animation = .easeInOut(duration: 0.25)
+    /// Morphs, drawers, the "satisfying" state changes.
+    static let spring: Animation = .spring(response: 0.42, dampingFraction: 0.85)
+    /// Content & image fade-ins (loaded data appearing).
+    static let content: Animation = .easeOut(duration: 0.35)
+    /// Micro/taps — small, fast.
+    static let quick: Animation = .easeOut(duration: 0.18)
+}
+
+// MARK: - Remote image
+
+/// The one remote-image pattern: a `Shimmer` ghost-loader placeholder that
+/// fades into the photo on load — never a hard blink. Pass a custom placeholder
+/// (e.g. `Color.clear`) when something else already sits behind the image.
+struct RemoteImage<Placeholder: View>: View {
+    let url: URL?
+    var contentMode: ContentMode = .fill
+    @ViewBuilder var placeholder: () -> Placeholder
+
+    var body: some View {
+        AsyncImage(url: url, transaction: Transaction(animation: Motion.content)) { phase in
+            if let image = phase.image {
+                image.resizable().aspectRatio(contentMode: contentMode).transition(.opacity)
+            } else {
+                placeholder()
+            }
+        }
+    }
+}
+
+extension RemoteImage where Placeholder == Shimmer {
+    init(_ url: URL?, contentMode: ContentMode = .fill) {
+        self.url = url
+        self.contentMode = contentMode
+        self.placeholder = { Shimmer() }
+    }
+}
+
+// MARK: - Skeletons
+
+/// A single ghost-loading block — a rounded `Shimmer`. Width defaults to full.
+struct SkeletonBlock: View {
+    var width: CGFloat? = nil
+    var height: CGFloat = 16
+    var cornerRadius: CGFloat = 12
+    var body: some View {
+        Shimmer()
+            .frame(maxWidth: width ?? .infinity)
+            .frame(height: height)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+/// Ghost-loading placeholder for content screens — a header + hero + a few rows.
+/// Use in place of a centered spinner so screens fade in instead of popping.
+struct ScreenSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 10) {
+                SkeletonBlock(width: 200, height: 28)
+                SkeletonBlock(width: 140, height: 14)
+            }
+            SkeletonBlock(height: 150, cornerRadius: 24)
+            ForEach(0..<3, id: \.self) { _ in
+                SkeletonBlock(height: 74, cornerRadius: 20)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
