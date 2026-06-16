@@ -33,7 +33,6 @@ struct WorkoutView: View {
     /// Hero fades over the first ~150pt and blurs out as content rises over it.
     private var heroOpacity: Double { Double(max(0, 1 - scrolled / 150)) }
     private var heroBlur: CGFloat { min(20, scrolled / 7) }
-    private var heroScale: CGFloat { 1 + min(scrolled, 220) / 2600 }
 
     init(day: DayWithExercises, phase: Phase, program: ProgramWithDays?) {
         _vm = StateObject(wrappedValue: WorkoutViewModel(day: day, program: program))
@@ -42,19 +41,15 @@ struct WorkoutView: View {
     var body: some View {
         ZStack(alignment: .top) {
             SculptBackground()
-            // Hero is pinned behind the list: as content scrolls up over it, it
-            // fades + blurs out instead of hard-scrolling away.
-            banner
-                .frame(maxHeight: .infinity, alignment: .top)
-                .scaleEffect(heroScale, anchor: .top)
-                .blur(radius: heroBlur)
-                .opacity(heroOpacity)
-                .allowsHitTesting(false)
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         offsetReader
-                        Color.clear.frame(height: bannerHeight)   // clear the hero
+                        // Hero scrolls with the list but fades + blurs out as it
+                        // goes — in-flow so it can't bleed through the cards.
+                        banner
+                            .blur(radius: heroBlur)
+                            .opacity(heroOpacity)
                         progressBlock.padding(.horizontal, 20).padding(.top, 14)
                         if let content = vm.fixedInfo?.content, !content.isEmpty {
                             GlassCard {
@@ -276,14 +271,23 @@ struct WorkoutView: View {
         VStack {
             Spacer()
             HStack(spacing: 10) {
+                // Bail: white circle, brand-tinted X.
                 Button { leave() } label: {
-                    Image(systemName: "xmark").font(.system(size: 18, weight: .semibold))
-                        .frame(width: 52, height: 52).background(Circle().fill(palette.surfaceStrong))
-                        .foregroundStyle(palette.inkSoft)
+                    Image(systemName: "xmark").font(.system(size: 18, weight: .bold))
+                        .foregroundStyle(palette.blushDeep)
+                        .frame(width: 56, height: 56)
+                        .background(Circle().fill(.white))
+                        .overlay(Circle().strokeBorder(palette.blushDeep.opacity(0.25)))
+                        .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
                 }
-                PillButton(title: vm.exercises.isEmpty ? "Finish workout" : "Finish workout · \(vm.doneCount)/\(vm.exercises.count)",
-                           kind: vm.allDone ? .accent : .ghost) {
-                    feel = nil; feelOpen = true
+                // Primary CTA: the strong brand color per theme, always prominent.
+                Button { feel = nil; feelOpen = true } label: {
+                    Text(vm.exercises.isEmpty ? "Finish workout" : "Finish workout · \(vm.doneCount)/\(vm.exercises.count)")
+                        .font(.sans(16, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity).frame(height: 56)
+                        .background(Capsule().fill(palette.blushDeep))
+                        .shadow(color: palette.blushDeep.opacity(0.35), radius: 10, y: 4)
                 }
             }
             .padding(.horizontal, 18).padding(.bottom, 12)
