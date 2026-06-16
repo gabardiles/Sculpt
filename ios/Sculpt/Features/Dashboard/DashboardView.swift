@@ -8,6 +8,8 @@ struct DashboardView: View {
     @Environment(\.palette) private var palette
     @StateObject private var vm = DashboardViewModel()
     @StateObject private var activity = ActivityViewModel()
+    /// The day being trained — presented as a full-screen takeover (no tab bar).
+    @State private var workoutDay: DayWithExercises?
 
     var body: some View {
         ZStack {
@@ -35,6 +37,13 @@ struct DashboardView: View {
         .task { await vm.load() }
         .task { await activity.load() }
         .refreshable { await vm.load(); await activity.refresh() }
+        // A workout is a focused "now" mode — take over the whole screen (no tab
+        // bar), then refresh Today so the finished day flips to done on dismiss.
+        .fullScreenCover(item: $workoutDay, onDismiss: {
+            Task { await vm.load(); await activity.refresh() }
+        }) { day in
+            WorkoutView(day: day, phase: vm.phase, program: vm.program)
+        }
     }
 
     private var header: some View {
@@ -46,9 +55,7 @@ struct DashboardView: View {
 
     @ViewBuilder private var nextUp: some View {
         if let day = vm.nextDay {
-            NavigationLink {
-                WorkoutView(day: day, phase: vm.phase, program: vm.program)
-            } label: {
+            Button { workoutDay = day } label: {
                 GlassCard(style: .spotlight) {
                     VStack(alignment: .leading, spacing: 8) {
                         Eyebrow("Next up · Day \(day.day.dayIndex)")
@@ -85,10 +92,8 @@ struct DashboardView: View {
         if !vm.weekDays.isEmpty {
             VStack(spacing: 8) {
                 ForEach(vm.weekDays) { d in
-                    NavigationLink {
-                        if let day = vm.program?.days.first(where: { $0.day.id == d.id }) {
-                            WorkoutView(day: day, phase: vm.phase, program: vm.program)
-                        }
+                    Button {
+                        workoutDay = vm.program?.days.first(where: { $0.day.id == d.id })
                     } label: {
                         GlassCard(style: d.done ? .done : .normal) {
                             HStack {

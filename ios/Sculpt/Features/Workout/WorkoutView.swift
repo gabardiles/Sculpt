@@ -22,6 +22,18 @@ struct WorkoutView: View {
     @State private var sharing = false
     /// When she opened the session — used to log a Health workout on finish.
     @State private var sessionStart = Date()
+    /// Live scroll offset (≤ 0 once scrolled), driving the collapsing hero.
+    @State private var scrollY: CGFloat = 0
+
+    private let bannerHeight: CGFloat = 220
+    private let scrollSpace = "workoutScroll"
+
+    /// How far we've scrolled past the top, clamped to ≥ 0.
+    private var scrolled: CGFloat { max(0, -scrollY) }
+    /// Hero fades over the first ~150pt and blurs out as content rises over it.
+    private var heroOpacity: Double { Double(max(0, 1 - scrolled / 150)) }
+    private var heroBlur: CGFloat { min(20, scrolled / 7) }
+    private var heroScale: CGFloat { 1 + min(scrolled, 220) / 2600 }
 
     init(day: DayWithExercises, phase: Phase, program: ProgramWithDays?) {
         _vm = StateObject(wrappedValue: WorkoutViewModel(day: day, program: program))
@@ -30,20 +42,39 @@ struct WorkoutView: View {
     var body: some View {
         ZStack(alignment: .top) {
             SculptBackground()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    banner
-                    progressBlock.padding(.horizontal, 20).padding(.top, 14)
-                    if let content = vm.fixedInfo?.content, !content.isEmpty {
-                        GlassCard {
-                            Text(content).font(.sans(14, weight: .light))
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+            // Hero is pinned behind the list: as content scrolls up over it, it
+            // fades + blurs out instead of hard-scrolling away.
+            banner
+                .frame(maxHeight: .infinity, alignment: .top)
+                .scaleEffect(heroScale, anchor: .top)
+                .blur(radius: heroBlur)
+                .opacity(heroOpacity)
+                .allowsHitTesting(false)
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        offsetReader
+                        Color.clear.frame(height: bannerHeight)   // clear the hero
+                        progressBlock.padding(.horizontal, 20).padding(.top, 14)
+                        if let content = vm.fixedInfo?.content, !content.isEmpty {
+                            GlassCard {
+                                Text(content).font(.sans(14, weight: .light))
+                                    .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                            }
+                            .padding(.horizontal, 20).padding(.top, 16)
                         }
-                        .padding(.horizontal, 20).padding(.top, 16)
+                        exerciseList.padding(20)
                     }
-                    exerciseList.padding(20)
+                    .padding(.bottom, 120)
                 }
-                .padding(.bottom, 120)
+                .coordinateSpace(name: scrollSpace)
+                .scrollTargetBehavior(.viewAligned)
+                .onPreferenceChange(ScrollOffsetKey.self) { scrollY = $0 }
+                // Tapping (or auto-advancing to) an exercise snaps it to the top.
+                .onChange(of: expanded) { _, id in
+                    guard let id else { return }
+                    withAnimation(.easeInOut(duration: 0.35)) { proxy.scrollTo(id, anchor: .top) }
+                }
             }
             if let until = restUntil {
                 RestTimer(until: until, nextName: restNext) {
@@ -66,12 +97,17 @@ struct WorkoutView: View {
 
     // MARK: header
 
+    /// Reports the scroll content's top edge into `scrollY` (≤ 0 once scrolled).
+    private var offsetReader: some View {
+        GeometryReader { geo in
+            Color.clear.preference(key: ScrollOffsetKey.self,
+                                   value: geo.frame(in: .named(scrollSpace)).minY)
+        }
+        .frame(height: 0)
+    }
+
     private var banner: some View {
         ZStack(alignment: .bottomLeading) {
-            LinearGradient(colors: [palette.blush.opacity(0.5), palette.bg], startPoint: .top, endPoint: .bottom)
-                .frame(height: 220)
-            LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
-                .frame(height: 220)
             VStack(alignment: .leading, spacing: 4) {
                 Eyebrow(vm.fixedInfo != nil
                         ? "\(vm.fixedInfo!.sessionLabel) · \(vm.fixedInfo!.intensityLabel) WEEK"
@@ -79,23 +115,23 @@ struct WorkoutView: View {
                 Text(vm.day.day.name).font(.sans(32, weight: .light)).tracking(0.5)
             }
             .padding(20)
-            HStack {
-                Button { leave() } label: {
-                    Image(systemName: "arrow.left").font(.system(size: 18, weight: .semibold))
-                        .frame(width: 44, height: 44).background(Circle().fill(.ultraThinMaterial))
-                }
-                Spacer()
-                MonoText(vm.fixedInfo != nil
-                         ? "WEEK \(vm.cycle)/\(vm.fixedInfo!.totalWeeks) · \(vm.fixedInfo!.intensityLabel)"
-                         : "CYCLE \(vm.cycle) · WEEK \(vm.weekIndex) · \(vm.phase.rawValue.uppercased())",
-                         size: 11)
-                    .padding(.vertical, 6).padding(.horizontal, 12)
-                    .background(Capsule().fill(.ultraThinMaterial))
-            }
-            .padding(.horizontal, 12).padding(.top, 8)
-            .frame(maxHeight: .infinity, alignment: .top)
+            MonoText(vm.fixedInfo != nil
+                     ? "WEEK \(vm.cycle)/\(vm.fixedInfo!.totalWeeks) · \(vm.fixedInfo!.intensityLabel)"
+                     : "CYCLE \(vm.cycle) · WEEK \(vm.weekIndex) · \(vm.phase.rawValue.uppercased())",
+                     size: 11)
+                .padding(.vertical, 6).padding(.horizontal, 12)
+                .background(Capsule().fill(.ultraThinMaterial))
+                .padding(.horizontal, 16).padding(.top, 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
         }
-        .frame(height: 220).clipShape(RoundedRectangle(cornerRadius: 0))
+        .frame(height: bannerHeight)
+        .background(
+            ZStack {
+                LinearGradient(colors: [palette.blush.opacity(0.5), palette.bg], startPoint: .top, endPoint: .bottom)
+                LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+            }
+            .ignoresSafeArea(edges: .top)   // gradient bleeds up under the island
+        )
     }
 
     private var progressBlock: some View {
@@ -128,7 +164,7 @@ struct WorkoutView: View {
                 let done = vm.entries[ex.id]?.done ?? false
                 GlassCard(style: done ? .done : (isNext ? .spotlight : .normal)) {
                     VStack(spacing: 0) {
-                        Button { expanded = expanded == ex.id ? nil : ex.id } label: { row(ex, done: done, isNext: isNext) }
+                        Button { withAnimation(.easeInOut(duration: 0.25)) { expanded = expanded == ex.id ? nil : ex.id } } label: { row(ex, done: done, isNext: isNext) }
                             .buttonStyle(.plain)
                         if expanded == ex.id { logPanel(ex, done: done) }
                     }
@@ -136,6 +172,7 @@ struct WorkoutView: View {
                 .id(ex.id)
             }
         }
+        .scrollTargetLayout()   // snap the scroll to whole exercise cards
     }
 
     private func row(_ ex: WorkoutViewModel.WorkoutExercise, done: Bool, isNext: Bool) -> some View {
@@ -391,4 +428,10 @@ struct WorkoutView: View {
         RestActivityController.shared.end()
         dismiss()
     }
+}
+
+/// Tracks the workout scroll view's top-edge offset for the collapsing hero.
+private struct ScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
