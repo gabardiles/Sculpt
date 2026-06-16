@@ -22,7 +22,9 @@ settings:
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
-    from: "2.0.0"
+    # Pin a known-good 2.x floor: the storage `upload(_:data:)` and
+    # `is(value: Bool?)` overloads the app uses aren't in the earliest 2.0.x.
+    from: "2.5.1"
 
 targets:
   Sculpt:
