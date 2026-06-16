@@ -105,16 +105,21 @@ struct WorkoutView: View {
     private var banner: some View {
         ZStack(alignment: .bottomLeading) {
             VStack(alignment: .leading, spacing: 4) {
-                Eyebrow(vm.fixedInfo != nil
-                        ? "\(vm.fixedInfo!.sessionLabel) · \(vm.fixedInfo!.intensityLabel) WEEK"
-                        : "Day \(vm.day.day.dayIndex) · \(vm.phase.rawValue.uppercased()) WEEK")
+                // White text over the editorial photo (matches the web hero).
+                Text((vm.fixedInfo != nil
+                      ? "\(vm.fixedInfo!.sessionLabel) · \(vm.fixedInfo!.intensityLabel) WEEK"
+                      : "Day \(vm.day.day.dayIndex) · \(vm.phase.rawValue.uppercased()) WEEK").uppercased())
+                    .font(.mono(12)).tracking(1.7).foregroundStyle(.white.opacity(0.88))
                 Text(vm.day.day.name).font(.sans(32, weight: .light)).tracking(0.5)
+                    .foregroundStyle(.white)
             }
             .padding(20)
+            .shadow(color: .black.opacity(0.4), radius: 8, y: 1)
             MonoText(vm.fixedInfo != nil
                      ? "WEEK \(vm.cycle)/\(vm.fixedInfo!.totalWeeks) · \(vm.fixedInfo!.intensityLabel)"
                      : "CYCLE \(vm.cycle) · WEEK \(vm.weekIndex) · \(vm.phase.rawValue.uppercased())",
                      size: 11)
+                .foregroundStyle(.white)
                 .padding(.vertical, 6).padding(.horizontal, 12)
                 .background(Capsule().fill(.ultraThinMaterial))
                 .padding(.horizontal, 16).padding(.top, 8)
@@ -123,14 +128,25 @@ struct WorkoutView: View {
         .frame(height: bannerHeight)
         .background(
             ZStack {
+                // Tint shows while the photo loads / if it fails.
                 LinearGradient(colors: [palette.blush.opacity(0.5), palette.bg], startPoint: .top, endPoint: .bottom)
-                LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.35)], startPoint: .top, endPoint: .bottom)
+                AsyncImage(url: Editorial.dayImage(vm.day.day.dayIndex)) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Color.clear
+                    }
+                }
+                // Darken for white-text legibility (matches the web overlay).
+                LinearGradient(colors: [.black.opacity(0.28), .black.opacity(0.55)],
+                               startPoint: .top, endPoint: .bottom)
             }
+            .clipped()
             // NB: must NOT .ignoresSafeArea here — inside an in-flow ScrollView
             // header it collapses the banner's measured height and the content
-            // below slides up under the title. The top gradient is handled by
-            // SculptBackground bleeding through the status-bar area instead.
+            // below slides up under the title.
         )
+        .clipShape(.rect(bottomLeadingRadius: 28, bottomTrailingRadius: 28))
     }
 
     private var progressBlock: some View {
