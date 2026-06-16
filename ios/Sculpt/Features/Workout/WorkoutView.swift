@@ -165,7 +165,10 @@ struct WorkoutView: View {
                     VStack(spacing: 0) {
                         Button { withAnimation(.easeInOut(duration: 0.25)) { expanded = expanded == ex.id ? nil : ex.id } } label: { row(ex, done: done, isNext: isNext) }
                             .buttonStyle(.plain)
-                        if expanded == ex.id { logPanel(ex, done: done) }
+                        if expanded == ex.id {
+                            logPanel(ex, done: done)
+                                .transition(.opacity.combined(with: .move(edge: .top)))
+                        }
                     }
                 }
                 .id(ex.id)
@@ -253,10 +256,14 @@ struct WorkoutView: View {
     }
 
     private func markDone(_ ex: WorkoutViewModel.WorkoutExercise) {
-        vm.entries[ex.id]?.done = true
         Haptics.success()
         let next = vm.exercises.first { $0.id != ex.id && !(vm.entries[$0.id]?.done ?? false) }
-        expanded = next?.id
+        // Smooth morph: the card fills green and its log panel collapses while the
+        // next card expands — a soft spring instead of an instant blink.
+        withAnimation(.spring(response: 0.45, dampingFraction: 0.8)) {
+            vm.entries[ex.id]?.done = true
+            expanded = next?.id
+        }
         if next != nil {
             restNext = next?.name
             let until = Date().addingTimeInterval(Double(RepTargets.restSeconds[vm.repPhase] ?? 90))
