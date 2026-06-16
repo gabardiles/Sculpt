@@ -249,6 +249,9 @@ private struct FeedCard: View {
             if item.type == .photo {
                 if let url = photoURL {
                     RemoteImage(url)
+                        // Reserve a 4:3 box so the Shimmer holds its place while
+                        // loading — a plain Color collapses to ~0pt in a ScrollView.
+                        .aspectRatio(4.0 / 3.0, contentMode: .fill)
                         .frame(maxWidth: .infinity)
                         .frame(maxHeight: 360)
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
