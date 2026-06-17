@@ -59,21 +59,21 @@ struct Palette {
     )
 
     static let spartan = Palette(
-        bg: Color(hex: "141414"),
-        blush: Color(hex: "F08226"),
-        blushDeep: Color(hex: "FB9D3F"),
+        bg: Color(hex: "0F0F0F"),
+        blush: Color(hex: "C6F03C"),         // brand lime — accent base
+        blushDeep: Color(hex: "D7FA57"),     // brighter lime — NEXT pill, focus, links
         ink: Color(hex: "F0EFED"),
         inkSoft: Color(hex: "9B9892"),
-        sage: Color(hex: "5D7355"),
-        sageDeep: Color(hex: "A8C49B"),
-        onAccent: Color(hex: "171411"),
+        sage: Color(hex: "738F38"),          // deep olive-lime — solid "done" fills (white check stays legible)
+        sageDeep: Color(hex: "BCE84A"),      // lime glow — streaks, green-days, sparklines
+        onAccent: Color(hex: "14160A"),      // near-black text on lime fills
         glass: Color.white.opacity(0.05),
         surface: Color.white.opacity(0.07),
-        surfaceStrong: Color(hex: "181818").opacity(0.92),
+        surfaceStrong: Color(hex: "161616").opacity(0.92),
         surfaceSoft: Color.white.opacity(0.045),
-        edge: Color.white.opacity(0.09),
-        doneFill: Color(hex: "5F7A58").opacity(0.22),
-        doneEdge: Color(hex: "5F7A58").opacity(0.35),
+        edge: Color.white.opacity(0.10),
+        doneFill: Color(hex: "738F38").opacity(0.22),
+        doneEdge: Color(hex: "738F38").opacity(0.38),
         isDark: true
     )
 

@@ -66,22 +66,22 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Sculpt — Spartan. Neutral dark greys; orange is a complement, not a
-   wash. Pure variable swap: zero JS, zero requests, zero runtime cost. */
+/* Sculpt — Spartan. Brand lime on near-black; the lime is the reward color
+   (green-days, highlights, done). Pure variable swap: zero JS, zero requests. */
 [data-theme="spartan"] {
-  --color-bg: #141414;
-  --color-blush: #f08226;
-  --color-blush-deep: #fb9d3f;
+  --color-bg: #0f0f0f;
+  --color-blush: #c6f03c;
+  --color-blush-deep: #d7fa57;
   --color-ink: #f0efed;
   --color-ink-soft: #9b9892;
-  --color-sage: #5d7355;
-  --color-sage-deep: #a8c49b;
-  --color-on-accent: #171411;
+  --color-sage: #738f38;
+  --color-sage-deep: #bce84a;
+  --color-on-accent: #14160a;
   --color-glass: rgba(255, 255, 255, 0.05);
   --color-surface: rgba(255, 255, 255, 0.07);
-  --color-surface-strong: rgba(24, 24, 24, 0.92);
+  --color-surface-strong: rgba(22, 22, 22, 0.92);
   --color-surface-soft: rgba(255, 255, 255, 0.045);
-  --color-edge: rgba(255, 255, 255, 0.09);
+  --color-edge: rgba(255, 255, 255, 0.1);
 }
 
 [data-theme="spartan"] .glass,
@@ -91,8 +91,8 @@ body {
 }
 
 [data-theme="spartan"] .glass-done {
-  background: rgba(95, 122, 82, 0.22);
-  border-color: rgba(95, 122, 82, 0.35);
+  background: rgba(115, 143, 56, 0.22);
+  border-color: rgba(115, 143, 56, 0.38);
 }
 
 /* Warm glow at the top of every screen — the reference look. */
@@ -101,10 +101,10 @@ body {
 }
 
 [data-theme="spartan"] .app-shell {
-  /* a whisper of warmth at the very top — accent, not a wash */
+  /* a whisper of lime at the very top — accent, not a wash */
   background-image: radial-gradient(
     80% 26% at 50% 0%,
-    rgba(240, 130, 38, 0.06),
+    rgba(198, 240, 60, 0.07),
     transparent 60%
   );
   background-repeat: no-repeat;
@@ -118,11 +118,11 @@ body {
 }
 
 [data-theme="spartan"] .card-spotlight {
-  background: rgba(240, 130, 38, 0.1);
-  border-color: rgba(240, 130, 38, 0.45);
+  background: rgba(198, 240, 60, 0.1);
+  border-color: rgba(198, 240, 60, 0.45);
   box-shadow:
-    0 0 0 2px #f08226,
-    0 10px 40px rgba(240, 130, 38, 0.3);
+    0 0 0 2px #c6f03c,
+    0 10px 40px rgba(198, 240, 60, 0.28);
 }
 
 /* Behind editorial photos: blush in Sculpt, neutral grey in Spartan
@@ -146,8 +146,8 @@ body {
   background:
     radial-gradient(
       120% 90% at 85% 0%,
-      rgba(240, 130, 38, 0.22) 0%,
-      rgba(240, 130, 38, 0.05) 45%,
+      rgba(198, 240, 60, 0.2) 0%,
+      rgba(198, 240, 60, 0.05) 45%,
       transparent 70%
     ),
     linear-gradient(160deg, rgba(255, 255, 255, 0.04), transparent 60%);
