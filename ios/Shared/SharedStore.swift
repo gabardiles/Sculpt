@@ -6,7 +6,7 @@ import Foundation
 /// nothing crashes if the group isn't set up yet — the widget just shows a
 /// gentle placeholder until the capability is added.
 enum SharedStore {
-    static let appGroup = "group.com.sculpt.app"
+    static let appGroup = "group.app.getsculpt.ios"
 
     private static var defaults: UserDefaults {
         UserDefaults(suiteName: appGroup) ?? .standard

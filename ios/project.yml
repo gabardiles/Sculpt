@@ -3,7 +3,7 @@
 # so the source tree is the single source of truth.
 name: Sculpt
 options:
-  bundleIdPrefix: com.sculpt
+  bundleIdPrefix: app.getsculpt
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -41,7 +41,7 @@ targets:
       - target: SculptWidgets # embeds the widget + Live Activity extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios
         INFOPLIST_FILE: Sculpt/Info.plist
         ENABLE_USER_SCRIPT_SANDBOXING: "YES"
         TARGETED_DEVICE_FAMILY: "1" # iPhone — the web app is mobile-first at 390px
@@ -75,7 +75,7 @@ targets:
       - path: Shared          # shared Live Activity attributes + App Group store
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios.widgets
         INFOPLIST_FILE: SculptWidgets/Info.plist
         # The App Group + Live Activity capabilities are added in Xcode's
         # Signing & Capabilities (see README) — that auto-manages entitlements
@@ -92,7 +92,7 @@ targets:
       - target: Sculpt
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios.tests
         GENERATE_INFOPLIST_FILE: "YES"
 
 schemes:
