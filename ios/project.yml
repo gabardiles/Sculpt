@@ -49,6 +49,23 @@ targets:
     configFiles:
       Debug: Sculpt/Config.xcconfig
       Release: Sculpt/Config.xcconfig
+    postBuildScripts:
+      # Auto-increment: stamp CFBundleVersion from the git commit count so every
+      # archive uploads with a unique, ever-increasing build number — no manual
+      # bumping. Identical value for app + widget (App Store Connect requires a
+      # match). Scoped to the repo with global git config disabled so it stays
+      # inside Xcode's user-script sandbox.
+      - &stampBuild
+        name: Stamp build number from git
+        basedOnDependencyAnalysis: false
+        script: |
+          export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+          build=$(git -C "$SRCROOT" rev-list --count HEAD 2>/dev/null)
+          [ -z "$build" ] && build="$CURRENT_PROJECT_VERSION"
+          plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build" "$plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $build" "$plist"
+          echo "Stamped CFBundleVersion = $build"
 
   SculptWidgets:
     type: app-extension
@@ -63,6 +80,8 @@ targets:
         # The App Group + Live Activity capabilities are added in Xcode's
         # Signing & Capabilities (see README) — that auto-manages entitlements
         # so the default build doesn't require pre-provisioned App IDs.
+    postBuildScripts:
+      - *stampBuild   # same git-commit-count stamp as the app, so build numbers match
 
   SculptTests:
     type: bundle.unit-test
