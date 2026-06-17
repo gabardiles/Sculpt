@@ -34,7 +34,7 @@ extension Repository {
         )).eq("id", value: userId).execute()
 
         if let w = input.weightKg, w > 0, w <= 400 {
-            try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
+            _ = try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
         }
 
         // Clone the suggested template if she has no active program yet.
@@ -331,7 +331,7 @@ extension Repository {
             .update(Up(gender: gender.rawValue, heightCm: heightCm, goalNote: goalNote))
             .eq("id", value: userId).execute()
         if let w = weight, w > 0, w <= 400 {
-            try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
+            _ = try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
         }
     }
 
