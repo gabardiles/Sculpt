@@ -19,6 +19,20 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const MODEL = "claude-opus-4-8";
 const MUSCLES = ["glutes", "hamstrings", "quads", "back", "chest", "shoulders", "arms", "core", "calves"];
 
+// The Start-Over wizard's answers, and the program shape Claude returns.
+type Brief = {
+  goal?: string;        // build muscle | lose fat | get stronger | sport | general
+  route?: string;       // "Padel", "Gym — Hypertrophy", "Boxing", …
+  sport?: string;       // free-text sport when route is a sport
+  daysPerWeek?: number; // 2–6
+  sessionMinutes?: number;
+  equipment?: string;   // full gym | home | minimal
+  level?: string;       // new | some | experienced
+};
+type GenExercise = { name: string; muscle?: string; sets?: number; reps?: string; note?: string };
+type GenDay = { name: string; session_type?: string; focus?: string; exercises: GenExercise[] };
+type GenProgram = { name: string; summary?: string; days: GenDay[] };
+
 Deno.serve(async (req) => {
   const cors = {
     "Access-Control-Allow-Origin": "*",
@@ -46,9 +60,28 @@ Deno.serve(async (req) => {
   const user = userData?.user;
   if (!user) return json({ ok: false, error: "unauthorized" }, 401);
 
-  let payload: { mode?: string; goalNote?: string; equipment?: string } = {};
+  let payload: {
+    mode?: string;
+    goalNote?: string;
+    equipment?: string;
+    brief?: Brief;
+    program?: GenProgram;
+  } = {};
   try { payload = (await req.json()) ?? {}; } catch { /* empty body → defaults */ }
-  const mode = payload.mode === "plan" ? "plan" : "insights";
+  const MODES = ["insights", "plan", "program", "program_commit"];
+  const mode = MODES.includes(payload.mode ?? "") ? payload.mode! : "insights";
+
+  // --- program_commit: persist an approved generated program (no Claude). ----
+  // The plan was previewed client-side; here we re-validate every exercise name
+  // against the real library, archive the current program, and write the new one
+  // as the active program. A fresh program has no logs, so the cycle engine
+  // derives it straight to Week 1 / Day 1.
+  if (mode === "program_commit") {
+    if (!payload.program) return json({ ok: false, error: "no_program" }, 400);
+    const programId = await commitProgram(supabase, user.id, payload.program, payload.brief ?? null);
+    if (!programId) return json({ ok: false, error: "commit_failed" });
+    return json({ ok: true, mode, programId });
+  }
 
   // --- Gather a compact training picture (last ~12 weeks / 25 sessions). ---
   const since = new Date(Date.now() - 84 * 864e5).toISOString();
@@ -73,9 +106,10 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "needs_data" });
   }
 
-  // For plan mode, give Claude the real exercise library so it picks valid moves.
+  // For plan/program modes, give Claude the real exercise library so it picks
+  // valid moves (names are re-validated against the library on commit).
   let library = "";
-  if (mode === "plan") {
+  if (mode === "plan" || mode === "program") {
     const { data: ex } = await supabase.from("exercises")
       .select("name, muscle_group, equipment").order("muscle_group").limit(200);
     library = (ex ?? [])
@@ -86,6 +120,8 @@ Deno.serve(async (req) => {
 
   const { system, userText } = mode === "plan"
     ? planPrompt(summary, library, payload.goalNote ?? null, payload.equipment ?? null)
+    : mode === "program"
+    ? programPrompt(summary, library, payload.brief ?? null)
     : insightsPrompt(summary);
 
   let raw: Record<string, unknown>;
@@ -95,7 +131,7 @@ Deno.serve(async (req) => {
       headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: mode === "plan" ? 2048 : 1024,
+        max_tokens: mode === "program" ? 4096 : mode === "plan" ? 2048 : 1024,
         system,
         messages: [{ role: "user", content: [{ type: "text", text: userText }] }],
       }),
@@ -110,7 +146,10 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "generation_failed", detail: String(e) });
   }
 
-  return json({ ok: true, mode, result: mode === "plan" ? normalizePlan(raw) : normalizeInsights(raw) });
+  const result = mode === "plan" ? normalizePlan(raw)
+    : mode === "program" ? normalizeProgram(raw)
+    : normalizeInsights(raw);
+  return json({ ok: true, mode, result });
 });
 
 // ---------------------------------------------------------------------------
@@ -202,6 +241,35 @@ Reply with ONLY a JSON object, no prose:
   return { system, userText };
 }
 
+function programPrompt(summary: string, library: string, brief: Brief | null) {
+  const days = Math.max(2, Math.min(6, Math.round(brief?.daysPerWeek ?? 4)));
+  const system = `You are an elite strength & conditioning coach. Build a GYM training program — the strength, power and conditioning work done in the weight room. If a sport is named, the program is the S&C that makes the athlete BETTER at that sport (you are NOT scheduling the sport itself): train the qualities that sport demands (e.g. boxing → rotational power, posterior-chain explosiveness, shoulder durability, conditioning; padel/tennis → lateral power, deceleration, rotational core, shoulder care; BJJ → grip, isometric strength, hip power; football → sprint/jump power, hamstrings, single-leg strength). For pure gym goals, build for the stated aesthetic/strength goal.
+
+The program is a repeating ${days}-day weekly split that the app progresses over a 3-week cycle (the app handles the light→medium→hard wave, so give sensible working ranges, not maxes). Day 1 should open with a light calibration feel so the athlete can find starting loads.
+
+Reply with ONLY a JSON object, no prose:
+{"name":string,"summary":string,"days":[{"name":string,"session_type":"strength"|"conditioning","focus":string,"exercises":[{"name":string,"muscle":string,"sets":int,"reps":string,"note":string}]}]}
+- Exactly ${days} days, each a distinct session (e.g. "Lower Power", "Upper Push", "Conditioning").
+- 5–7 exercises per day, ordered big→small. reps is a string like "5", "6–8" or "40s". note: one short cue or load hint.
+- Choose exercise names ONLY from the provided library, matching names EXACTLY.
+- name: a short, motivating program title that reflects the route/sport.`;
+  const b = brief ?? {};
+  const briefLine = [
+    b.goal ? `Goal: ${b.goal}.` : "",
+    b.route ? `Route: ${b.route}.` : "",
+    b.sport ? `Sport: ${b.sport}.` : "",
+    `Days per week: ${days}.`,
+    b.sessionMinutes ? `Session length: ~${b.sessionMinutes} min.` : "",
+    b.equipment ? `Equipment: ${b.equipment}.` : "Equipment: full gym.",
+    b.level ? `Experience: ${b.level}.` : "",
+  ].filter(Boolean).join(" ");
+  const dataLine = summary.includes("No logged sessions")
+    ? "This is a fresh start — no recent training history."
+    : `Recent training for context (don't over-fit to it, this is a fresh program):\n${summary}`;
+  const userText = `${briefLine}\n\n${dataLine}\n\nExercise library (use exact names): ${library || "(none — use common barbell/dumbbell movements)"}\n\nBuild my program as the JSON above.`;
+  return { system, userText };
+}
+
 // ---------------------------------------------------------------------------
 // Normalizers — clamp, bound strings, drop unknowns (mirrors fitness-report).
 // ---------------------------------------------------------------------------
@@ -237,6 +305,78 @@ function normalizePlan(raw: Record<string, unknown>) {
       note: str(e.note, 160),
     })),
   };
+}
+
+function normalizeProgram(raw: Record<string, unknown>): GenProgram {
+  const days = arr(raw.days).slice(0, 6).map((d: Record<string, unknown>) => ({
+    name: str(d.name, 60) || "Session",
+    session_type: d.session_type === "conditioning" ? "conditioning" : "strength",
+    focus: str(d.focus, 120),
+    exercises: arr(d.exercises).slice(0, 8).map((e: Record<string, unknown>) => ({
+      name: str(e.name, 80),
+      muscle: str(e.muscle, 40),
+      sets: int(e.sets, 1, 8),
+      reps: str(e.reps, 20),
+      note: str(e.note, 160),
+    })).filter((e: GenExercise) => e.name.length > 0),
+  })).filter((d: GenDay) => d.exercises.length > 0);
+  return { name: str(raw.name, 80) || "My Program", summary: str(raw.summary, 200), days };
+}
+
+// ---------------------------------------------------------------------------
+// Commit — turn an approved generated program into real rows. Re-validates
+// every exercise name against the library, archives the current program, and
+// writes the new one as active. Uses the caller's RLS-scoped client.
+// ---------------------------------------------------------------------------
+// deno-lint-ignore no-explicit-any
+async function commitProgram(supabase: any, userId: string, program: GenProgram, brief: Brief | null): Promise<string | null> {
+  const clean = normalizeProgram(program as unknown as Record<string, unknown>);
+  if (!clean.days.length) return null;
+
+  // Map exercise names → library ids (case-insensitive exact match).
+  const { data: lib } = await supabase.from("exercises").select("id, name");
+  const byName = new Map<string, string>();
+  for (const e of (lib ?? []) as { id: string; name: string }[]) byName.set(e.name.trim().toLowerCase(), e.id);
+
+  // Archive whatever is currently active.
+  await supabase.from("programs").update({ active: false }).eq("user_id", userId).eq("active", true);
+
+  const { data: created } = await supabase.from("programs").insert({
+    user_id: userId,
+    name: clean.name,
+    weeks: 3,
+    days_per_week: clean.days.length,
+    active: true,
+    schedule_mode: "cycle",
+    source: "ai",
+    brief: brief ?? null,
+  }).select("id").single();
+  if (!created) return null;
+
+  let dayIndex = 1;
+  for (const day of clean.days) {
+    const { data: newDay } = await supabase.from("program_days").insert({
+      program_id: created.id,
+      day_index: dayIndex++,
+      name: day.name,
+      week_index: null,
+      weekday: null,
+      session_type: day.session_type,
+      content: day.focus || null,
+    }).select("id").single();
+    if (!newDay) continue;
+
+    let sort = 0;
+    const rows = [];
+    for (const ex of day.exercises) {
+      const id = byName.get(ex.name.trim().toLowerCase());
+      if (!id) continue; // skip anything not in the real library
+      const scheme = [ex.reps, ex.note].filter(Boolean).join(" · ").slice(0, 200) || null;
+      rows.push({ program_day_id: newDay.id, exercise_id: id, sort: sort++, sets: ex.sets, scheme });
+    }
+    if (rows.length) await supabase.from("program_exercises").insert(rows);
+  }
+  return created.id as string;
 }
 
 // --- tiny helpers ---
