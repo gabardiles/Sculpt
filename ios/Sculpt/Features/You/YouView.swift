@@ -8,6 +8,8 @@ struct YouView: View {
     @EnvironmentObject private var theme: ThemeManager
     @Environment(\.palette) private var palette
 
+    @State private var showStartOver = false
+
     private var appVersion: String {
         (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String) ?? "—"
     }
@@ -19,6 +21,7 @@ struct YouView: View {
                 VStack(alignment: .leading, spacing: 28) {
                     header
                     sections
+                    training
                     appearance
                     learn
                     account
@@ -31,6 +34,28 @@ struct YouView: View {
         .foregroundStyle(palette.ink)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showStartOver) {
+            if let uid = session.profile?.id {
+                StartOverView(userId: uid) {
+                    Task { await session.loadProfile(userId: uid) }
+                }
+            }
+        }
+    }
+
+    // MARK: - Training (start over)
+
+    private var training: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Eyebrow("Training")
+            Button { showStartOver = true } label: {
+                row(icon: "sparkles", title: "Start new training")
+            }
+            .buttonStyle(.plain)
+            Text("Pick a sport or goal and we'll build a fresh program — back to Day 1, Week 1. Your progress photos stay.")
+                .font(.sans(12, weight: .light)).foregroundStyle(palette.inkSoft)
+                .padding(.horizontal, 4)
+        }
     }
 
     // MARK: - Header

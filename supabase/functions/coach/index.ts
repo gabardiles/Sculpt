@@ -28,7 +28,13 @@ type Brief = {
   sessionMinutes?: number;
   equipment?: string;   // full gym | home | minimal
   level?: string;       // new | some | experienced
+  // Tolerate snake_case too, in case a client encoder converts keys.
+  days_per_week?: number;
+  session_minutes?: number;
 };
+
+const briefDays = (b: Brief | null) => b?.daysPerWeek ?? b?.days_per_week;
+const briefMinutes = (b: Brief | null) => b?.sessionMinutes ?? b?.session_minutes;
 type GenExercise = { name: string; muscle?: string; sets?: number; reps?: string; note?: string };
 type GenDay = { name: string; session_type?: string; focus?: string; exercises: GenExercise[] };
 type GenProgram = { name: string; summary?: string; days: GenDay[] };
@@ -242,7 +248,7 @@ Reply with ONLY a JSON object, no prose:
 }
 
 function programPrompt(summary: string, library: string, brief: Brief | null) {
-  const days = Math.max(2, Math.min(6, Math.round(brief?.daysPerWeek ?? 4)));
+  const days = Math.max(2, Math.min(6, Math.round(briefDays(brief) ?? 4)));
   const system = `You are an elite strength & conditioning coach. Build a GYM training program — the strength, power and conditioning work done in the weight room. If a sport is named, the program is the S&C that makes the athlete BETTER at that sport (you are NOT scheduling the sport itself): train the qualities that sport demands (e.g. boxing → rotational power, posterior-chain explosiveness, shoulder durability, conditioning; padel/tennis → lateral power, deceleration, rotational core, shoulder care; BJJ → grip, isometric strength, hip power; football → sprint/jump power, hamstrings, single-leg strength). For pure gym goals, build for the stated aesthetic/strength goal.
 
 The program is a repeating ${days}-day weekly split that the app progresses over a 3-week cycle (the app handles the light→medium→hard wave, so give sensible working ranges, not maxes). Day 1 should open with a light calibration feel so the athlete can find starting loads.
@@ -259,7 +265,7 @@ Reply with ONLY a JSON object, no prose:
     b.route ? `Route: ${b.route}.` : "",
     b.sport ? `Sport: ${b.sport}.` : "",
     `Days per week: ${days}.`,
-    b.sessionMinutes ? `Session length: ~${b.sessionMinutes} min.` : "",
+    briefMinutes(b) ? `Session length: ~${briefMinutes(b)} min.` : "",
     b.equipment ? `Equipment: ${b.equipment}.` : "Equipment: full gym.",
     b.level ? `Experience: ${b.level}.` : "",
   ].filter(Boolean).join(" ");

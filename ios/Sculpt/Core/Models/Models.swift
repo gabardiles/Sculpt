@@ -211,6 +211,8 @@ struct ProgressPhoto: Codable, Identifiable, Sendable {
     var weekLabel: String
     var storagePath: String
     var createdAt: String
+    /// The program active when the shot was taken (nil for older photos).
+    var programLabel: String?
 }
 
 struct Goal: Codable, Identifiable, Sendable {

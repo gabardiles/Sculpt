@@ -156,7 +156,12 @@ struct PhotosView: View {
     private func viewerSheet(_ card: PhotosViewModel.PhotoCard) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Eyebrow("Cycle \(card.photo.cycleNumber) · \(card.photo.weekLabel)")
+                VStack(alignment: .leading, spacing: 2) {
+                    Eyebrow("Cycle \(card.photo.cycleNumber) · \(card.photo.weekLabel)")
+                    if let program = card.photo.programLabel, !program.isEmpty {
+                        Text(program).font(.sans(13, weight: .light)).foregroundStyle(palette.inkSoft)
+                    }
+                }
                 if let url = card.url {
                     AsyncImage(url: url) { phase in
                         switch phase {
@@ -199,6 +204,7 @@ final class PhotosViewModel: ObservableObject {
 
     @Published var photos: [PhotoCard] = []   // newest first
     @Published var uploading = false
+    @Published var activeProgram: String?     // stamped onto new uploads
 
     private let bucket = "progress-photos"
 
@@ -218,6 +224,9 @@ final class PhotosViewModel: ObservableObject {
 
     func load() async {
         guard let userId = await Repository.shared.currentUserId() else { return }
+        if let prog = (try? await Repository.shared.getActiveProgram(userId)) ?? nil {
+            activeProgram = prog.program.name
+        }
         guard let fetched = try? await Repository.shared.getProgressPhotos(userId) else { return }
         var cards: [PhotoCard] = []
         for photo in fetched {
@@ -234,7 +243,7 @@ final class PhotosViewModel: ObservableObject {
         guard let data = try? await item.loadTransferable(type: Data.self) else { return }
         let label = weekLabel.trimmingCharacters(in: .whitespaces).isEmpty ? "W1" : weekLabel
         try? await Repository.shared.uploadProgressPhoto(
-            userId: userId, data: data, cycle: cycle, weekLabel: label)
+            userId: userId, data: data, cycle: cycle, weekLabel: label, programLabel: activeProgram)
         await load()
     }
 

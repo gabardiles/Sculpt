@@ -12,6 +12,7 @@ struct ProgramView: View {
     @State private var editing = false
     @State private var helpOpen = false
     @State private var createOpen = false
+    @State private var showStartOver = false
 
     // Sheet routing
     @State private var swapFor: SwapTarget?
@@ -36,6 +37,7 @@ struct ProgramView: View {
                         header(program)
                         phaseSections(program)
                         if !vm.otherTemplates.isEmpty { switchSection(program) }
+                        startNewSection
                     }
                     .padding(20).padding(.bottom, 90)
                     .transition(.opacity)
@@ -56,6 +58,22 @@ struct ProgramView: View {
         .sheet(isPresented: $helpOpen) { helpSheet }
         .sheet(isPresented: $createOpen) { CreateExerciseSheet(vm: vm) }
         .sheet(item: switchSheetBinding) { switchSheet($0) }
+        .sheet(isPresented: $showStartOver) {
+            if let uid = session.profile?.id {
+                StartOverView(userId: uid) { Task { await vm.load() } }
+            }
+        }
+    }
+
+    // MARK: - Start new training (AI wizard)
+
+    private var startNewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Eyebrow("Start over")
+            PillButton(title: "Start new training", icon: "sparkles") { showStartOver = true }
+            Text("Pick a sport or goal and let Sculpt build a fresh program from Day 1. Your current program is archived; progress photos stay.")
+                .font(.sans(12, weight: .light)).foregroundStyle(palette.inkSoft)
+        }
     }
 
     // MARK: - Header
