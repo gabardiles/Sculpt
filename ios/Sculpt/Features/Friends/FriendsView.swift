@@ -33,7 +33,7 @@ struct FriendsView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.easeOut(duration: 0.25), value: vm.toast)
+        .animation(Motion.standard, value: vm.toast)
         .task {
             if !vm.loaded { await vm.load() }
             vm.startRealtime()
@@ -127,7 +127,9 @@ struct FriendsView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
         } else {
-            VStack(spacing: 12) {
+            // Lazy so a long feed (and its images) renders on demand instead of
+            // building every card up front — keeps scrolling smooth.
+            LazyVStack(spacing: 12) {
                 ForEach(vm.items) { item in
                     FeedCard(vm: vm, item: item,
                              photoURL: item.storagePath.flatMap { vm.photoURLs[$0] })
@@ -248,15 +250,13 @@ private struct FeedCard: View {
 
             if item.type == .photo {
                 if let url = photoURL {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let img): img.resizable().scaledToFill()
-                        default: palette.surfaceSoft.aspectRatio(4.0/3.0, contentMode: .fill)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(maxHeight: 360)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    RemoteImage(url)
+                        // Reserve a 4:3 box so the Shimmer holds its place while
+                        // loading — a plain Color collapses to ~0pt in a ScrollView.
+                        .aspectRatio(4.0 / 3.0, contentMode: .fill)
+                        .frame(maxWidth: .infinity)
+                        .frame(maxHeight: 360)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
                 if let body = item.body, !body.isEmpty {
                     Text(body).font(.sans(14, weight: .light)).foregroundStyle(palette.ink)
@@ -388,14 +388,9 @@ private struct CommentThread: View {
 
     @ViewBuilder private var commentAnchor: some View {
         if item.type == .photo, let url = photoURL {
-            AsyncImage(url: url) { phase in
-                switch phase {
-                case .success(let img): img.resizable().scaledToFill()
-                default: palette.surfaceSoft
-                }
-            }
-            .frame(width: 36, height: 36)
-            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+            RemoteImage(url)
+                .frame(width: 36, height: 36)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         } else {
             Image(systemName: "bubble.left")
                 .font(.system(size: 15))

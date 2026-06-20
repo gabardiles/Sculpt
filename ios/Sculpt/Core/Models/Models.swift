@@ -60,10 +60,12 @@ enum Unit: String, Codable, Sendable {
 
 // MARK: - Core rows
 
-struct Profile: Codable, Identifiable, Sendable {
+struct Profile: Codable, Identifiable, Sendable, Equatable {
     let id: String
     var name: String?
-    var isAdmin: Bool
+    // Optional so partial profile selects (e.g. the friends feed, which fetches
+    // only id/name/friend_code/theme) decode without a keyNotFound error.
+    var isAdmin: Bool?
     var invitedBy: String?
     var friendCode: String?
     var theme: AppTheme?
@@ -209,6 +211,8 @@ struct ProgressPhoto: Codable, Identifiable, Sendable {
     var weekLabel: String
     var storagePath: String
     var createdAt: String
+    /// The program active when the shot was taken (nil for older photos).
+    var programLabel: String?
 }
 
 struct Goal: Codable, Identifiable, Sendable {

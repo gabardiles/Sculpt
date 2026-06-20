@@ -3,7 +3,7 @@
 # so the source tree is the single source of truth.
 name: Sculpt
 options:
-  bundleIdPrefix: com.sculpt
+  bundleIdPrefix: app.getsculpt
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -22,7 +22,9 @@ settings:
 packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
-    minVersion: "2.0.0"
+    # Pin a known-good 2.x floor: the storage `upload(_:data:)` and
+    # `is(value: Bool?)` overloads the app uses aren't in the earliest 2.0.x.
+    from: "2.5.1"
 
 targets:
   Sculpt:
@@ -39,7 +41,7 @@ targets:
       - target: SculptWidgets # embeds the widget + Live Activity extension
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios
         INFOPLIST_FILE: Sculpt/Info.plist
         ENABLE_USER_SCRIPT_SANDBOXING: "YES"
         TARGETED_DEVICE_FAMILY: "1" # iPhone — the web app is mobile-first at 390px
@@ -47,6 +49,23 @@ targets:
     configFiles:
       Debug: Sculpt/Config.xcconfig
       Release: Sculpt/Config.xcconfig
+    postBuildScripts:
+      # Auto-increment: stamp CFBundleVersion from the git commit count so every
+      # archive uploads with a unique, ever-increasing build number — no manual
+      # bumping. Identical value for app + widget (App Store Connect requires a
+      # match). Scoped to the repo with global git config disabled so it stays
+      # inside Xcode's user-script sandbox.
+      - &stampBuild
+        name: Stamp build number from git
+        basedOnDependencyAnalysis: false
+        script: |
+          export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+          build=$(git -C "$SRCROOT" rev-list --count HEAD 2>/dev/null)
+          [ -z "$build" ] && build="$CURRENT_PROJECT_VERSION"
+          plist="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $build" "$plist" 2>/dev/null \
+            || /usr/libexec/PlistBuddy -c "Add :CFBundleVersion string $build" "$plist"
+          echo "Stamped CFBundleVersion = $build"
 
   SculptWidgets:
     type: app-extension
@@ -56,11 +75,13 @@ targets:
       - path: Shared          # shared Live Activity attributes + App Group store
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app.widgets
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios.widgets
         INFOPLIST_FILE: SculptWidgets/Info.plist
         # The App Group + Live Activity capabilities are added in Xcode's
         # Signing & Capabilities (see README) — that auto-manages entitlements
         # so the default build doesn't require pre-provisioned App IDs.
+    postBuildScripts:
+      - *stampBuild   # same git-commit-count stamp as the app, so build numbers match
 
   SculptTests:
     type: bundle.unit-test
@@ -71,7 +92,7 @@ targets:
       - target: Sculpt
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.sculpt.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: app.getsculpt.ios.tests
         GENERATE_INFOPLIST_FILE: "YES"
 
 schemes:

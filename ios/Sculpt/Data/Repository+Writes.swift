@@ -34,7 +34,7 @@ extension Repository {
         )).eq("id", value: userId).execute()
 
         if let w = input.weightKg, w > 0, w <= 400 {
-            try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
+            _ = try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
         }
 
         // Clone the suggested template if she has no active program yet.
@@ -274,14 +274,17 @@ extension Repository {
 
     // MARK: - Photos
 
-    func uploadProgressPhoto(userId: String, data: Data, cycle: Int, weekLabel: String) async throws {
+    /// `programLabel` stamps the active program's name onto the shot so the
+    /// gallery can group photos into chapters by the program that was running.
+    func uploadProgressPhoto(userId: String, data: Data, cycle: Int, weekLabel: String,
+                             programLabel: String? = nil) async throws {
         let path = "\(userId)/\(UUID().uuidString).jpg"
         let jpeg = ImageProcessing.downsampledJPEG(from: data)
         try await client.storage.from("progress-photos")
             .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
-        struct Ins: Encodable { var userId: String; var cycleNumber: Int; var weekLabel: String; var storagePath: String }
+        struct Ins: Encodable { var userId: String; var cycleNumber: Int; var weekLabel: String; var storagePath: String; var programLabel: String? }
         try await client.from("progress_photos")
-            .insert(Ins(userId: userId, cycleNumber: cycle, weekLabel: weekLabel, storagePath: path))
+            .insert(Ins(userId: userId, cycleNumber: cycle, weekLabel: weekLabel, storagePath: path, programLabel: programLabel))
             .execute()
     }
 
@@ -324,6 +327,39 @@ extension Repository {
         }
     }
 
+    // MARK: - AI program generation (Start-Over wizard)
+
+    /// Ask the `coach` function (mode "program") to build a sport/goal-specific
+    /// S&C program from the wizard brief. Returns the plan to preview, or nil.
+    func generateProgram(brief: Brief) async -> GenProgram? {
+        struct Body: Encodable { var mode = "program"; var brief: Brief }
+        struct Result: Decodable { var ok: Bool; var result: GenProgram? }
+        do {
+            let res: Result = try await client.functions.invoke(
+                "coach", options: FunctionInvokeOptions(body: Body(brief: brief))
+            ) { data, _ in try JSONDecoder().decode(Result.self, from: data) }
+            return res.ok ? res.result : nil
+        } catch {
+            return nil
+        }
+    }
+
+    /// Commit an approved generated program (mode "program_commit"): the server
+    /// re-validates exercises, archives the current program, and writes this one
+    /// as active. Returns the new program id, or nil on failure.
+    func commitProgram(program: GenProgram, brief: Brief) async -> String? {
+        struct Body: Encodable { var mode = "program_commit"; var program: GenProgram; var brief: Brief }
+        struct Result: Decodable { var ok: Bool; var programId: String? }
+        do {
+            let res: Result = try await client.functions.invoke(
+                "coach", options: FunctionInvokeOptions(body: Body(program: program, brief: brief))
+            ) { data, _ in try JSONDecoder().decode(Result.self, from: data) }
+            return res.ok ? res.programId : nil
+        } catch {
+            return nil
+        }
+    }
+
     func saveFitnessProfile(userId: String, gender: Gender, heightCm: Double?,
                             goalNote: String?, weight: Double?) async throws {
         struct Up: Encodable { var gender: String; var heightCm: Double?; var goalNote: String? }
@@ -331,7 +367,7 @@ extension Repository {
             .update(Up(gender: gender.rawValue, heightCm: heightCm, goalNote: goalNote))
             .eq("id", value: userId).execute()
         if let w = weight, w > 0, w <= 400 {
-            try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
+            _ = try? await logBodyWeight(userId: userId, weight: w, date: Fmt.todayISO())
         }
     }
 

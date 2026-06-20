@@ -8,13 +8,15 @@ struct DashboardView: View {
     @Environment(\.palette) private var palette
     @StateObject private var vm = DashboardViewModel()
     @StateObject private var activity = ActivityViewModel()
+    /// The day being trained — presented as a full-screen takeover (no tab bar).
+    @State private var workoutDay: DayWithExercises?
 
     var body: some View {
         ZStack {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.program == nil {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else {
                     VStack(alignment: .leading, spacing: 22) {
                         header
@@ -27,14 +29,27 @@ struct DashboardView: View {
                         if let q = vm.quote { quote(q) }
                     }
                     .padding(20).padding(.bottom, 90)
+                    .transition(.opacity)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
         .task { await vm.load() }
         .task { await activity.load() }
         .refreshable { await vm.load(); await activity.refresh() }
+        // A workout is a focused "now" mode — take over the whole screen (no tab
+        // bar), then refresh Today so the finished day flips to done on dismiss.
+        .fullScreenCover(item: $workoutDay, onDismiss: {
+            Task { await vm.load(); await activity.refresh() }
+        }) { day in
+            // .fullScreenCover starts a fresh environment branch — custom values
+            // like \.palette don't cross it, so re-inject the active theme or the
+            // whole session screen falls back to the default light palette.
+            WorkoutView(day: day, phase: vm.phase, program: vm.program)
+                .environment(\.palette, palette)
+        }
     }
 
     private var header: some View {
@@ -46,9 +61,7 @@ struct DashboardView: View {
 
     @ViewBuilder private var nextUp: some View {
         if let day = vm.nextDay {
-            NavigationLink {
-                WorkoutView(day: day, phase: vm.phase, program: vm.program)
-            } label: {
+            Button { workoutDay = day } label: {
                 GlassCard(style: .spotlight) {
                     VStack(alignment: .leading, spacing: 8) {
                         Eyebrow("Next up · Day \(day.day.dayIndex)")
@@ -85,10 +98,8 @@ struct DashboardView: View {
         if !vm.weekDays.isEmpty {
             VStack(spacing: 8) {
                 ForEach(vm.weekDays) { d in
-                    NavigationLink {
-                        if let day = vm.program?.days.first(where: { $0.day.id == d.id }) {
-                            WorkoutView(day: day, phase: vm.phase, program: vm.program)
-                        }
+                    Button {
+                        workoutDay = vm.program?.days.first(where: { $0.day.id == d.id })
                     } label: {
                         GlassCard(style: d.done ? .done : .normal) {
                             HStack {

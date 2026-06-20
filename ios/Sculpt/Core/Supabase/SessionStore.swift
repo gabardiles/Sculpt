@@ -19,12 +19,10 @@ final class SessionStore: ObservableObject {
     private var watchTask: Task<Void, Never>?
 
     func start() {
-        // Instant launch: if we have a persisted session + a cached profile,
-        // route straight into the app and validate in the background — no
-        // spinner, no waiting on the network.
-        if let session = client.auth.currentSession,
-           let cached = DiskCache.load(Profile.self, key: "profile"),
-           cached.id == session.user.id.uuidString {
+        // Instant launch: if we have a cached profile, route straight into the
+        // app — no spinner, no waiting on the network. refresh() below validates
+        // the session in the background and flips to .signedOut if it's invalid.
+        if let cached = DiskCache.load(Profile.self, key: "profile") {
             profile = cached
             phase = (cached.name?.isEmpty == false) ? .ready(cached) : .onboarding(userId: cached.id)
         }

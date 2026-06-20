@@ -85,6 +85,33 @@ struct GlassCard<Content: View>: View {
     }
 }
 
+/// Animated "ghost loader" — a soft shimmer over `surfaceSoft`. Used as the
+/// placeholder while async images load so cells fade in instead of blinking.
+struct Shimmer: View {
+    @Environment(\.palette) private var palette
+    @State private var animating = false
+
+    var body: some View {
+        palette.surfaceSoft
+            .overlay {
+                GeometryReader { geo in
+                    let highlight = palette.isDark ? Color.white.opacity(0.06)
+                                                   : Color.white.opacity(0.55)
+                    LinearGradient(colors: [.clear, highlight, .clear],
+                                   startPoint: .leading, endPoint: .trailing)
+                        .frame(width: geo.size.width * 0.7)
+                        .offset(x: animating ? geo.size.width * 1.3 : -geo.size.width * 1.3)
+                }
+            }
+            .clipped()
+            .onAppear {
+                withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                    animating = true
+                }
+            }
+    }
+}
+
 /// Pill-shaped button — the `PillButton` component.
 struct PillButton: View {
     enum Kind { case accent, ghost, sage }
@@ -108,7 +135,7 @@ struct PillButton: View {
             .background(Capsule().fill(bg))
             .overlay(Capsule().strokeBorder(border, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var bg: Color {
@@ -129,6 +156,18 @@ struct PillButton: View {
     }
 }
 
+/// Subtle press feedback — a quick scale + dim so every tap feels physical.
+/// Apply to any `Button` (it replaces `.plain`; the label keeps its own styling).
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.96
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .animation(Motion.quick, value: configuration.isPressed)
+    }
+}
+
 /// Circular progress — the `ProgressRing` component.
 struct ProgressRing: View {
     var progress: Double         // 0..1
@@ -144,7 +183,7 @@ struct ProgressRing: View {
                 .trim(from: 0, to: max(0, min(1, progress)))
                 .stroke(palette.blushDeep, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-                .animation(.easeOut(duration: 0.4), value: progress)
+                .animation(Motion.content, value: progress)
             if let label {
                 Text(label).font(.mono(13, weight: .medium)).foregroundStyle(palette.ink)
             }
@@ -199,5 +238,83 @@ struct Screen<Content: View>: View {
             }
         }
         .foregroundStyle(palette.ink)
+    }
+}
+
+// MARK: - Motion
+
+/// Shared motion tokens so every animation in the app feels uniform. Reach for
+/// these instead of inline durations/curves.
+enum Motion {
+    /// Toggles, expand/collapse, default UI state changes.
+    static let standard: Animation = .easeInOut(duration: 0.25)
+    /// Morphs, drawers, the "satisfying" state changes.
+    static let spring: Animation = .spring(response: 0.42, dampingFraction: 0.85)
+    /// Content & image fade-ins (loaded data appearing).
+    static let content: Animation = .easeOut(duration: 0.35)
+    /// Micro/taps — small, fast.
+    static let quick: Animation = .easeOut(duration: 0.18)
+}
+
+// MARK: - Remote image
+
+/// The one remote-image pattern: a `Shimmer` ghost-loader placeholder that
+/// fades into the photo on load — never a hard blink. Pass a custom placeholder
+/// (e.g. `Color.clear`) when something else already sits behind the image.
+struct RemoteImage<Placeholder: View>: View {
+    let url: URL?
+    var contentMode: ContentMode = .fill
+    @ViewBuilder var placeholder: () -> Placeholder
+
+    var body: some View {
+        AsyncImage(url: url, transaction: Transaction(animation: Motion.content)) { phase in
+            if let image = phase.image {
+                image.resizable().aspectRatio(contentMode: contentMode).transition(.opacity)
+            } else {
+                placeholder()
+            }
+        }
+    }
+}
+
+extension RemoteImage where Placeholder == Shimmer {
+    init(_ url: URL?, contentMode: ContentMode = .fill) {
+        self.url = url
+        self.contentMode = contentMode
+        self.placeholder = { Shimmer() }
+    }
+}
+
+// MARK: - Skeletons
+
+/// A single ghost-loading block — a rounded `Shimmer`. Width defaults to full.
+struct SkeletonBlock: View {
+    var width: CGFloat? = nil
+    var height: CGFloat = 16
+    var cornerRadius: CGFloat = 12
+    var body: some View {
+        Shimmer()
+            .frame(maxWidth: width ?? .infinity)
+            .frame(height: height)
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+}
+
+/// Ghost-loading placeholder for content screens — a header + hero + a few rows.
+/// Use in place of a centered spinner so screens fade in instead of popping.
+struct ScreenSkeleton: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 10) {
+                SkeletonBlock(width: 200, height: 28)
+                SkeletonBlock(width: 140, height: 14)
+            }
+            SkeletonBlock(height: 150, cornerRadius: 24)
+            ForEach(0..<3, id: \.self) { _ in
+                SkeletonBlock(height: 74, cornerRadius: 20)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

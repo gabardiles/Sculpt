@@ -127,7 +127,7 @@ the widget reads a snapshot the app writes to a shared **App Group**.
 
 `xcodegen generate` already creates and embeds the extension. To make the
 widget show live data (rather than a placeholder), add the **App Group**
-capability — the same group id `group.com.sculpt.app` — to *both* the `Sculpt`
+capability — the same group id `group.app.getsculpt.ios` — to *both* the `Sculpt`
 and `SculptWidgets` targets in Xcode → Signing & Capabilities. Live Activities
 need no extra setup beyond `NSSupportsLiveActivities` (already in Info.plist).
 Until the App Group is added, `SharedStore` falls back to local defaults and the
@@ -154,7 +154,7 @@ is written and waiting:
 2. Deploy the Edge Function: `supabase functions deploy notify-feed`
    (`../supabase/functions/notify-feed/index.ts`).
 3. Set the function secrets from your APNs auth key (.p8):
-   `supabase secrets set APNS_KEY_ID=… APNS_TEAM_ID=… APNS_BUNDLE_ID=com.sculpt.app APNS_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)" APNS_ENVIRONMENT=sandbox`
+   `supabase secrets set APNS_KEY_ID=… APNS_TEAM_ID=… APNS_BUNDLE_ID=app.getsculpt.ios APNS_PRIVATE_KEY="$(cat AuthKey_XXXX.p8)" APNS_ENVIRONMENT=sandbox`
 4. In the Supabase Dashboard → Database → Webhooks, add INSERT webhooks on
    `feed_cheers` and `feed_comments` pointing at the `notify-feed` function.
 5. In Xcode, add the **Push Notifications** capability to the target.

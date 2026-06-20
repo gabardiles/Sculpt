@@ -42,7 +42,9 @@ final class HealthKitManager {
     // MARK: - Steps (Green Days)
 
     /// Local-day key, matching how workout days and `Fmt.todayISO()` are keyed.
-    private static let dayKey: DateFormatter = {
+    /// `nonisolated` so it can be read from the HealthKit query callback (which
+    /// runs off the main actor); it's created once and only read, never mutated.
+    nonisolated(unsafe) private static let dayKey: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"

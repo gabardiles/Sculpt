@@ -77,7 +77,7 @@ final class LocalNotifications {
             content.body = messages[(offset - 2) % messages.count]
             content.sound = .default
             let trigger = UNCalendarNotificationTrigger(dateMatching: c, repeats: false)
-            center.add(UNNotificationRequest(identifier: "\(reminderPrefix)\(offset)", content: content, trigger: trigger))
+            try? await center.add(UNNotificationRequest(identifier: "\(reminderPrefix)\(offset)", content: content, trigger: trigger))
         }
     }
 

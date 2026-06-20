@@ -6,13 +6,24 @@ import Supabase
 /// comment; we prepend https:// here.
 enum SupabaseConfig {
     static var url: URL {
-        let host = (Bundle.main.object(forInfoDictionaryKey: "SUPABASE_HOST") as? String)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let full = host.hasPrefix("http") ? host : "https://\(host)"
-        guard let u = URL(string: full), host.isEmpty == false, host != "your-project.supabase.co" else {
+        // Strip any scheme the value may carry. xcconfig also treats `//` as a
+        // comment, so a pasted `https://host` is silently truncated to `https:`
+        // — strip that leftover too so a misconfig fails loudly below instead of
+        // building a hostless URL that hangs every request (a blank-screen app).
+        let host = ((Bundle.main.object(forInfoDictionaryKey: "SUPABASE_HOST") as? String) ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "https://", with: "")
+            .replacingOccurrences(of: "http://", with: "")
+            .replacingOccurrences(of: "https:", with: "")
+            .replacingOccurrences(of: "http:", with: "")
+            .replacingOccurrences(of: "/", with: "")
+        guard host.contains("."), host != "your-project.supabase.co",
+              let u = URL(string: "https://\(host)") else {
             fatalError("""
-            Supabase is not configured. Edit ios/Sculpt/Config.xcconfig and set
-            SUPABASE_HOST and SUPABASE_ANON_KEY (Supabase → Project Settings → API).
+            Supabase is not configured (host=\"\(host)\"). Edit ios/Sculpt/Config.xcconfig
+            and set SUPABASE_HOST to your project host WITHOUT the scheme — e.g.
+            SUPABASE_HOST = your-project.supabase.co  (not https://…, the `//` is a
+            comment in xcconfig). Set SUPABASE_ANON_KEY too (Supabase → Settings → API).
             """)
         }
         return u

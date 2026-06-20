@@ -12,6 +12,7 @@ struct ProgramView: View {
     @State private var editing = false
     @State private var helpOpen = false
     @State private var createOpen = false
+    @State private var showStartOver = false
 
     // Sheet routing
     @State private var swapFor: SwapTarget?
@@ -30,20 +31,23 @@ struct ProgramView: View {
             SculptBackground()
             ScrollView {
                 if vm.loading && vm.program == nil {
-                    ProgressView().tint(palette.blushDeep).padding(.top, 120)
+                    ScreenSkeleton().transition(.opacity)
                 } else if let program = vm.program {
                     VStack(alignment: .leading, spacing: 24) {
                         header(program)
                         phaseSections(program)
                         if !vm.otherTemplates.isEmpty { switchSection(program) }
+                        startNewSection
                     }
                     .padding(20).padding(.bottom, 90)
+                    .transition(.opacity)
                 } else {
                     Text("No active program yet.")
                         .font(.sans(15, weight: .light))
                         .foregroundStyle(palette.inkSoft).padding(.top, 120)
                 }
             }
+            .animation(Motion.content, value: vm.loading)
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .navigationBar)
@@ -54,6 +58,22 @@ struct ProgramView: View {
         .sheet(isPresented: $helpOpen) { helpSheet }
         .sheet(isPresented: $createOpen) { CreateExerciseSheet(vm: vm) }
         .sheet(item: switchSheetBinding) { switchSheet($0) }
+        .sheet(isPresented: $showStartOver) {
+            if let uid = session.profile?.id {
+                StartOverView(userId: uid) { Task { await vm.load() } }
+            }
+        }
+    }
+
+    // MARK: - Start new training (AI wizard)
+
+    private var startNewSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Eyebrow("Start over")
+            PillButton(title: "Start new training", icon: "sparkles") { showStartOver = true }
+            Text("Pick a sport or goal and let Sculpt build a fresh program from Day 1. Your current program is archived; progress photos stay.")
+                .font(.sans(12, weight: .light)).foregroundStyle(palette.inkSoft)
+        }
     }
 
     // MARK: - Header
