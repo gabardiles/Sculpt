@@ -143,13 +143,20 @@ final class FriendsViewModel: ObservableObject {
     }
 
     /// Resolve signed URLs for photo posts so AsyncImage can render them.
+    /// Fetched concurrently so the feed doesn't stall on N sequential round-trips.
     private func loadPhotoURLs(for posts: [FeedPost]) async {
         let paths = posts.compactMap { $0.type == .photo ? $0.storagePath : nil }
-        for path in paths where photoURLs[path] == nil {
-            if let url = await repo.signedURL(bucket: "feed-photos", path: path) {
-                photoURLs[path] = url
+            .filter { photoURLs[$0] == nil }
+        guard !paths.isEmpty else { return }
+        let resolved = await withTaskGroup(of: (String, URL?).self) { group in
+            for path in paths {
+                group.addTask { (path, await Repository.shared.signedURL(bucket: "feed-photos", path: path)) }
             }
+            var out: [(String, URL)] = []
+            for await (path, url) in group where url != nil { out.append((path, url!)) }
+            return out
         }
+        for (path, url) in resolved { photoURLs[path] = url }
     }
 
     // MARK: - Composer

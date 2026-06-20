@@ -163,11 +163,12 @@ struct PhotosView: View {
                     }
                 }
                 if let url = card.url {
-                    AsyncImage(url: url) { phase in
+                    AsyncImage(url: url, transaction: Transaction(animation: Motion.content)) { phase in
                         switch phase {
                         case .success(let img):
                             img.resizable().scaledToFit()
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .transition(.opacity)
                         default:
                             RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .fill(palette.surfaceSoft)
@@ -192,7 +193,7 @@ struct PhotosView: View {
 
 @MainActor
 final class PhotosViewModel: ObservableObject {
-    struct PhotoCard: Identifiable {
+    struct PhotoCard: Identifiable, Sendable {
         let photo: ProgressPhoto
         var url: URL?
         var id: String { photo.id }
@@ -228,12 +229,22 @@ final class PhotosViewModel: ObservableObject {
             activeProgram = prog.program.name
         }
         guard let fetched = try? await Repository.shared.getProgressPhotos(userId) else { return }
-        var cards: [PhotoCard] = []
-        for photo in fetched {
-            let url = await Repository.shared.signedURL(bucket: bucket, path: photo.storagePath)
-            cards.append(PhotoCard(photo: photo, url: url))
+        let bucket = self.bucket
+        // Resolve every signed URL concurrently — the first load no longer waits
+        // on N sequential round-trips (Repository is @MainActor, so its URL cache
+        // stays serialized while the network calls overlap).
+        let cards = await withTaskGroup(of: (Int, PhotoCard).self) { group in
+            for (i, photo) in fetched.enumerated() {
+                group.addTask {
+                    let url = await Repository.shared.signedURL(bucket: bucket, path: photo.storagePath)
+                    return (i, PhotoCard(photo: photo, url: url))
+                }
+            }
+            var slots = [PhotoCard?](repeating: nil, count: fetched.count)
+            for await (i, card) in group { slots[i] = card }
+            return slots.compactMap { $0 }
         }
-        photos = cards
+        withAnimation(Motion.content) { photos = cards }
     }
 
     func upload(item: PhotosPickerItem, cycle: Int, weekLabel: String) async {

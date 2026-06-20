@@ -127,7 +127,9 @@ struct FriendsView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
         } else {
-            VStack(spacing: 12) {
+            // Lazy so a long feed (and its images) renders on demand instead of
+            // building every card up front — keeps scrolling smooth.
+            LazyVStack(spacing: 12) {
                 ForEach(vm.items) { item in
                     FeedCard(vm: vm, item: item,
                              photoURL: item.storagePath.flatMap { vm.photoURLs[$0] })
