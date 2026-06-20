@@ -135,7 +135,7 @@ struct PillButton: View {
             .background(Capsule().fill(bg))
             .overlay(Capsule().strokeBorder(border, lineWidth: 1))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var bg: Color {
@@ -153,6 +153,18 @@ struct PillButton: View {
     }
     private var border: Color {
         kind == .ghost ? palette.edge : .clear
+    }
+}
+
+/// Subtle press feedback — a quick scale + dim so every tap feels physical.
+/// Apply to any `Button` (it replaces `.plain`; the label keeps its own styling).
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.96
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? scale : 1)
+            .opacity(configuration.isPressed ? 0.9 : 1)
+            .animation(Motion.quick, value: configuration.isPressed)
     }
 }
 

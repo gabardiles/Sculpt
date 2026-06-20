@@ -14,6 +14,7 @@ struct StartOverView: View {
 
     private enum Step: Int { case goal, route, logistics, preview }
     @State private var step: Step = .goal
+    @State private var forward = true   // drives the slide direction between steps
 
     @State private var goal: String?
     @State private var route: String?
@@ -40,17 +41,23 @@ struct StartOverView: View {
                 header
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        switch step {
-                        case .goal: goalStep
-                        case .route: routeStep
-                        case .logistics: logisticsStep
-                        case .preview: previewStep
+                        Group {
+                            switch step {
+                            case .goal: goalStep
+                            case .route: routeStep
+                            case .logistics: logisticsStep
+                            case .preview: previewStep
+                            }
                         }
+                        .id(step)
+                        .transition(stepTransition)
                         if let error {
                             Text(error).font(.sans(13)).foregroundStyle(palette.blushDeep)
+                                .transition(.opacity)
                         }
                     }
                     .padding(24)
+                    .animation(Motion.standard, value: step)
                 }
             }
         }
@@ -84,7 +91,7 @@ struct StartOverView: View {
                     choice(g, selected: goal == g) { goal = g }
                 }
             }
-            PillButton(title: "Continue") { step = .route }
+            PillButton(title: "Continue") { forward = true; step = .route }
                 .disabled(goal == nil)
         }
     }
@@ -99,7 +106,7 @@ struct StartOverView: View {
             if route == "Other" {
                 TextField("Which sport?", text: $sportOther).fieldStyle(palette).padding(.top, 4)
             }
-            PillButton(title: "Continue") { step = .logistics }
+            PillButton(title: "Continue") { forward = true; step = .logistics }
                 .disabled(route == nil || (route == "Other" && sportOther.trimmingCharacters(in: .whitespaces).isEmpty))
         }
     }
@@ -165,6 +172,14 @@ struct StartOverView: View {
 
     // MARK: - Building blocks
 
+    /// Steps slide in the direction of travel — forward pages from the trailing
+    /// edge, Back pages from the leading edge — so the flow feels spatial.
+    private var stepTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: forward ? .trailing : .leading).combined(with: .opacity),
+            removal: .move(edge: forward ? .leading : .trailing).combined(with: .opacity))
+    }
+
     private func stepTitle(_ title: String, _ sub: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title).font(.sans(22, weight: .light)).foregroundStyle(palette.ink)
@@ -184,7 +199,7 @@ struct StartOverView: View {
                 .fill(selected ? palette.blush.opacity(0.3) : palette.surface))
             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(palette.edge))
         }
-        .buttonStyle(.plain).foregroundStyle(palette.ink)
+        .buttonStyle(PressableButtonStyle()).foregroundStyle(palette.ink)
     }
 
     /// A wrapping set of small selectable pills (for routes/sports).
@@ -206,7 +221,7 @@ struct StartOverView: View {
                     .fill(selected ? palette.blush.opacity(0.35) : palette.surface))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.edge))
         }
-        .buttonStyle(.plain).foregroundStyle(palette.ink)
+        .buttonStyle(PressableButtonStyle()).foregroundStyle(palette.ink)
     }
 
     /// A labelled horizontal segmented picker built from pills.
@@ -230,7 +245,7 @@ struct StartOverView: View {
                     .fill(selected ? palette.blush.opacity(0.35) : palette.surface))
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(palette.edge))
         }
-        .buttonStyle(.plain).foregroundStyle(palette.ink)
+        .buttonStyle(PressableButtonStyle()).foregroundStyle(palette.ink)
     }
 
     // MARK: - Logic
@@ -248,6 +263,7 @@ struct StartOverView: View {
 
     private func back() {
         error = nil
+        forward = false
         switch step {
         case .goal: break
         case .route: step = .goal
@@ -260,7 +276,7 @@ struct StartOverView: View {
         busy = true; error = nil
         let result = await Repository.shared.generateProgram(brief: brief)
         if let result, !result.days.isEmpty {
-            plan = result; step = .preview
+            plan = result; forward = true; step = .preview
         } else {
             error = "Couldn't build a program just now. Check your connection and try again."
         }
